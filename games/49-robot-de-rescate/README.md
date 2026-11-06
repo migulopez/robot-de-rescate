@@ -1,5 +1,8 @@
 # 49. Robot de rescate simulado 🤖🐱
 
+> **Entrada directa:** `http://localhost:8080/` abre el juego automáticamente.
+> No hay menú ni portada intermedia.
+
 Videojuego educativo en **HTML5, CSS3 y JavaScript** (Canvas 2D puro, sin dependencias)
 donde controlas un robot móvil de rescate con **sensor ultrasónico HC-SR04** desde una
 **vista cenital (top-down)**.
@@ -16,8 +19,8 @@ sin correr demasiado tiempo con el gatito a bordo.
 
 ## 🎮 Cómo jugar
 
-Abre `games/49-robot-de-rescate/index.html` en el navegador (o desde el catálogo
-`index.html` de la raíz del repositorio).
+Abre `index.html` (raíz del repositorio) y entrarás **directamente al juego**, o
+abre `games/49-robot-de-rescate/index.html`.
 
 | Tecla | Acción |
 | --- | --- |
@@ -88,19 +91,20 @@ Si llegas a la veterinaria **sin** el gatito, la misión **no** se completa.
 ### 4. Sistema de estabilidad del transporte (mecánica clave)
 
 - Mientras llevas al gatito, si superas la velocidad normal se llena un
-  **indicador de inestabilidad**.
+  **indicador de inestabilidad** (a velocidad normal **no** sube).
 - Al 35 % aparece la advertencia **«¡Cuidado! Estás transportando al gatito demasiado
   rápido»** y el gatito empieza a **tambalearse** sobre el robot.
 - Al 72 % el aviso pasa a **crítico** (parpadeo rojo).
-- Al 100 % (≈ 4 s de velocidad rápida continua por defecto) **el gatito se cae**:
+- Al 100 % (**≈ 2,5 s** de velocidad rápida continua por defecto) **el gatito se cae**:
   - cae al suelo con animación,
   - el jugador pierde el progreso del rescate,
   - el gatito **regresa automáticamente** a su posición junto al árbol,
   - el robot vuelve al estado de búsqueda para reintentar.
 - Si **bajas la velocidad**, el indicador desciende y el transporte continúa.
 
-**Tiempo de tolerancia configurable:** por defecto **4 s**, ajustable en vivo con el
-control deslizante del panel de estabilidad (1.5 – 10 s) o por URL:
+**Tiempo de tolerancia configurable:** por defecto **2,5 s** (antes 4 s: era demasiado
+permisivo y el gatito nunca se caía), ajustable en vivo con el control deslizante del
+panel de estabilidad (1 – 8 s) o por URL:
 
 ```
 index.html?tolerancia=6
@@ -108,13 +112,37 @@ index.html?tolerancia=6
 
 o editando `CONFIG.STABILITY.toleranceSeconds` en `js/config.js`.
 
-### 5. Entrega en la veterinaria
+### 5. Choques, salud del robot y taller de reparación
+
+- Cada choque **daña el robot** (−32 % de salud) y **reduce la estabilidad máxima** del
+  transporte. Con **3 choques** la estabilidad máxima queda en **30 %** y **nunca baja
+  del 30 %** por muchos choques que se den.
+- La barra de estabilidad muestra un **tope blanco** con el porcentaje máximo actual:
+  aunque vayas despacio, la inestabilidad nunca supera ese techo, así que con el robot
+  dañado es mucho más fácil que el gatito se caiga.
+- Un choque mientras transportas al gatito también lo **desestabiliza** en el acto.
+- El **TALLER** (a mitad de camino, junto a la ruta) tiene una zona amarilla: entra en
+  ella y el robot se repara automáticamente subiendo salud y estabilidad máxima hasta
+  el **100 %** en pocos segundos, con chispas y contador de progreso.
+- Cuando hace falta reparar, el HUD avisa («¡Ve al TALLER a reparar!») y el taller
+  muestra una etiqueta flotante sobre el mapa.
+
+### 6. Entrega en la veterinaria
 
 - Edificio con cruz, toldo, fachada y letrero **«VETERINARIA»** que brilla.
 - **Zona de entrega** animada (anillo punteado giratorio + flecha).
 - Al entrar con el gatito: el gatito baja, aparecen corazones y confeti, y se muestra
   la pantalla **«¡MISIÓN CUMPLIDA!»** con tiempo total, obstáculos evitados, choques y
   número de caídas.
+
+### 7. Escenario ampliado
+
+- Mapa de **2800 × 2100 px** (antes 2000 × 1500) con **134 obstáculos**: árboles, rocas,
+  arbustos, macetas, bancas, cajas y barreras distribuidas por todo el parque.
+- Ruta principal en diagonal desde el árbol hasta la veterinaria, con ramales de tierra
+  hacia el **taller** y el **pozo/fuente** central.
+- El generador de obstáculos deja siempre un **pasillo libre** sobre la ruta y verifica
+  con BFS que el gatito, el taller y la veterinaria son alcanzables desde el inicio.
 
 ---
 
@@ -123,11 +151,12 @@ o editando `CONFIG.STABILITY.toleranceSeconds` en `js/config.js`.
 - Nombre del juego, objetivo actual y cronómetro.
 - Indicador de velocidad con barra y etiqueta NORMAL / RÁPIDO.
 - Lectura grande del sensor ultrasónico con barra de rango y estado.
-- Indicador de estabilidad del transporte (con control de tolerancia).
+- Indicador de estabilidad del transporte con **tope máximo** dinámico y control de tolerancia.
+- **Salud del robot** con avisos de daño y estado del taller (disponible / necesario / reparando).
 - Estado del gatito (pendiente / a bordo / se cayó / entregado).
 - **Panel técnico en tiempo real**: distancia medida, velocidad, estado del motor,
-  estado del transporte, detección de obstáculos, ruedas, estado del gatito, choques
-  y obstáculos evitados.
+  estado del transporte, detección de obstáculos, ruedas, estado del gatito,
+  **salud**, **estabilidad máxima**, **estado del taller**, choques y obstáculos evitados.
 - Lista de controles que se iluminan al pulsar las teclas.
 - Botones de **Pausa**, **Reiniciar** y **Ayuda** (con imágenes del prototipo real y
   del gatito de referencia).
@@ -155,7 +184,7 @@ games/49-robot-de-rescate/
 │   ├── robot-real.jpg      # Fotografía del prototipo real
 │   └── gatito-referencia.png
 ├── tests/
-│   └── run-tests.js        # 29 pruebas automáticas de las mecánicas
+│   └── run-tests.js        # 37 pruebas automáticas de las mecánicas
 └── README.md
 ```
 
@@ -183,9 +212,15 @@ node tests/run-tests.js
 Cubren navegación, frenado, colisiones con árboles/bancas, límites del mundo,
 detección del sensor (delante/detrás, umbrales de 20/50 cm), rescate del gatito,
 caída por exceso de velocidad, recuperación del indicador, retorno del gatito al
-árbol, tolerancia configurable, condición de victoria y alcanzabilidad del escenario.
+árbol, tolerancia configurable, condición de victoria, choques/taller y
+alcanzabilidad del escenario.
 
-Resultado actual: **29 pruebas superadas, 0 fallidas**.
+Resultado actual: **37 pruebas superadas, 0 fallidas**.
+
+Incluyen, además de lo anterior: penalización de salud y de estabilidad máxima por
+choque, mínimo del 30 % tras 3+ choques, que la carga nunca supere el techo, reparación
+completa en el taller, alcanzabilidad del taller, tamaño del mapa y redirección de la
+portada al juego.
 
 ---
 

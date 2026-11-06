@@ -31,7 +31,6 @@
     </div>
 
     <div class="topbar-actions">
-      <a class="btn ghost" href="../../index.html" title="Volver al catálogo">← Catálogo</a>
       <button class="btn" id="btn-help" title="Instrucciones (H)">? Ayuda</button>
       <button class="btn" id="btn-pause">⏸ Pausa</button>
       <button class="btn danger" id="btn-reset">⟲ Reiniciar</button>
@@ -85,12 +84,32 @@
             <span class="panel-label">Estabilidad del transporte</span>
             <span class="cat-chip waiting" id="cat-chip">gatito</span>
           </div>
-          <div class="bar tall"><div class="bar-fill ok" id="stability-bar" style="width:0%"></div></div>
+          <div class="bar tall cap-bar">
+            <div class="bar-cap" id="stability-cap" style="left:100%"></div>
+            <div class="bar-fill ok" id="stability-bar" style="width:0%"></div>
+          </div>
           <div class="sub" id="stability-text">Sin gatito a bordo</div>
+          <div class="cap-line">
+            <span class="panel-label">Estabilidad máx.</span>
+            <strong class="mono" id="stability-cap-text">100 %</strong>
+          </div>
           <div class="tolerance-row">
             <label for="tolerance-range">Tolerancia de velocidad rápida</label>
-            <span class="mono" id="tolerance-value">4.0 s</span>
-            <input type="range" id="tolerance-range" min="1.5" max="10" step="0.5" value="4" />
+            <span class="mono" id="tolerance-value">2.5 s</span>
+            <input type="range" id="tolerance-range" min="1" max="8" step="0.5" value="2.5" />
+          </div>
+        </div>
+
+        <div class="panel health-panel" id="health-panel">
+          <div class="panel-head">
+            <span class="panel-label">Salud del robot</span>
+            <span class="health-tag ok" id="health-tag">OK</span>
+          </div>
+          <div class="bar"><div class="bar-fill ok" id="health-bar" style="width:100%"></div></div>
+          <div class="sub" id="health-text">100 % · sin daños</div>
+          <div class="workshop-row" id="workshop-row">
+            <span class="ws-icon">🔧</span>
+            <span id="workshop-text">Taller disponible</span>
           </div>
         </div>
 
@@ -115,6 +134,9 @@
             <div><dt>Detección de obstáculos</dt><dd id="tech-obstacle">ninguno</dd></div>
             <div><dt>Ruedas</dt><dd id="tech-wheels">detenidas</dd></div>
             <div><dt>Estado del gatito</dt><dd id="tech-cat">waiting</dd></div>
+            <div><dt>Salud del robot</dt><dd id="tech-health">100 %</dd></div>
+            <div><dt>Estabilidad máx.</dt><dd id="tech-cap">100 %</dd></div>
+            <div><dt>Taller</dt><dd id="tech-workshop">fuera</dd></div>
             <div><dt>Choques</dt><dd id="tech-collisions">0</dd></div>
             <div><dt>Obstáculos evitados</dt><dd id="tech-avoided">0</dd></div>
           </dl>
@@ -191,6 +213,11 @@
            durante más de la <strong>tolerancia</strong> configurada, el indicador de
            inestabilidad sube y el gatito se soltará, volviendo al árbol.
            Baja la velocidad para que el indicador disminuya.</p>
+        <h3>Choques y taller</h3>
+        <p>Cada choque <strong>daña el robot</strong> y reduce la <strong>estabilidad máxima</strong>
+           del transporte: con 3 choques o más sólo podrás alcanzar el 30 %.
+           Ve al <strong>TALLER</strong> (junto a la ruta, a mitad de camino) y espera unos
+           segundos dentro de la zona amarilla para volver al 100 %.</p>
         <h3>Modelo real</h3>
         <p class="tiny">El robot del juego está inspirado en el prototipo físico del repositorio
            (chasis impreso en 3D, ruedas con aros rojos, plataforma metálica y HC-SR04 frontal).

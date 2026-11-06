@@ -52,6 +52,24 @@
         charge: 0,
         warning: false,
         critical: false,
+        /**
+         * Techo dinámico: cada choque lo reduce (mín. ~30 %).
+         * La estabilidad sólo puede subir hasta este valor.
+         */
+        maxCap: 1,
+      },
+      /** Salud / integridad del robot (0-100). Se recupera en el taller. */
+      health: {
+        value: CFG.HEALTH.max,
+        max: CFG.HEALTH.max,
+        repairing: false,
+        repairProgress: 0,
+      },
+      /** Estado del taller (zona de reparación) */
+      workshop: {
+        available: true,
+        inZone: false,
+        repairs: 0,
       },
       sensor: {
         cm: CFG.SENSOR.maxRangeCm,
@@ -183,6 +201,98 @@
       game.say('¡MISIÓN CUMPLIDA!', 'ok', 6);
     };
 
+    /* ---------------- Choques y salud del robot ---------------- */
+
+    /**
+     * Registra un choque:
+     *  - resta salud al robot,
+     *  - reduce el techo de estabilidad (máx. 100 %, y tras más de 3 choques ~30 %),
+     *  - si el robot lleva al gatito, el golpe también lo desestabiliza.
+     */
+    game.registerCollision = function (obstacle) {
+      const H = CFG.HEALTH;
+      game.stats.collisions++;
+      game.health.value = Math.max(0, game.health.value - H.collisionPenalty);
+
+      // Techo de estabilidad: baja con cada choque hasta un mínimo del 30 %.
+      const floor = H.floorAfterHits / 100;
+      const before = game.stability.maxCap;
+      const drop = H.collisionPenalty / 100 * (before > 0.6 ? 1 : 0.45);
+      game.stability.maxCap = Math.max(floor, before - drop);
+
+      if (game.cat.state === 'carried') {
+        // El golpe hace que el gatito se tambalee
+        game.stability.charge = Math.min(1,
+          game.stability.charge + 0.18 + (game.robot.fast ? 0.1 : 0));
+      }
+      game.stability.charge = Math.min(game.stability.charge, game.stability.maxCap);
+
+      game.emit('impact', {
+        x: game.robot.x, y: game.robot.y, obstacle: obstacle,
+        health: game.health.value, maxCap: game.stability.maxCap,
+      });
+
+      if (game.health.value <= 0) {
+        game.say('¡Robot dañado! Ve al TALLER a repararlo', 'danger', 3.6);
+      } else if (game.stats.collisions >= H.floorAfterHits + 1) {
+        game.say('¡Choque! Estabilidad máx. ' + Math.round(game.stability.maxCap * 100) +
+          ' % · Repara en el TALLER', 'danger', 3.2);
+      } else {
+        game.say('¡Choque! Estabilidad máx. ' + Math.round(game.stability.maxCap * 100) + ' %',
+          'danger', 2.2);
+      }
+
+      // La entrega se cancela si el golpe tira al gatito
+      if (game.stability.charge >= 1 && game.cat.state === 'carried') {
+        game.startCatFall('crash');
+      }
+    };
+
+    /* ---------------- Taller de reparación ---------------- */
+
+    game.updateWorkshop = function (dt) {
+      const W = LEVEL.workshop;
+      const d = Math.hypot(game.robot.x - W.x, game.robot.y - W.y);
+      const inZone = d < (W.reachRadius || 110);
+      game.workshop.inZone = inZone;
+
+      const needsRepair = game.health.value < CFG.HEALTH.max - 0.01 ||
+        game.stability.maxCap < 0.999;
+
+      if (inZone && needsRepair) {
+        game.health.repairing = true;
+        const rate = CFG.HEALTH.repairPerSecond * (CFG.HEALTH.repairCostFactor || 1);
+        game.health.value = Math.min(CFG.HEALTH.max, game.health.value + rate * dt);
+        // La estabilidad máxima también se restaura
+        game.stability.maxCap = Math.min(1, game.stability.maxCap + (rate / 100) * 1.6 * dt);
+        game.health.repairProgress = 1 - game.health.value / CFG.HEALTH.max;
+
+        if (game.health.value >= CFG.HEALTH.max - 0.01 &&
+            game.stability.maxCap >= 0.999) {
+          game.health.value = CFG.HEALTH.max;
+          game.stability.maxCap = 1;
+          game.workshop.repairs++;
+          game.health.repairing = false;
+          game.health.repairProgress = 0;
+          game.emit('repaired', {});
+          game.say('✔ Robot reparado al 100 %. ¡A rescatar!', 'ok', 3);
+        }
+      } else {
+        game.health.repairing = false;
+        if (inZone && !needsRepair && !game._workshopHinted) {
+          game._workshopHinted = true;
+          game.say('Robot en perfecto estado (100 %)', 'ok', 2.2);
+        }
+      }
+      if (!inZone) game._workshopHinted = false;
+    };
+
+    /** ¿Se puede reparar ahora mismo? (para el HUD) */
+    game.canRepair = function () {
+      return game.workshop.inZone &&
+        (game.health.value < CFG.HEALTH.max - 0.01 || game.stability.maxCap < 0.999);
+    };
+
     /* ---------------- Reinicio ---------------- */
 
     game.reset = function (keepConfig) {
@@ -213,12 +323,20 @@
       game.stability.charge = 0;
       game.stability.warning = false;
       game.stability.critical = false;
+      game.stability.maxCap = 1;
+      game.health.value = CFG.HEALTH.max;
+      game.health.repairing = false;
+      game.health.repairProgress = 0;
+      game.workshop.available = true;
+      game.workshop.inZone = false;
+      game.workshop.repairs = 0;
+      game._workshopHinted = false;
       game.sensor.cm = CFG.SENSOR.maxRangeCm;
       game.sensor.detected = false;
       game.sensor.level = 'clear';
       game.stats = {
         obstaclesAvoided: 0, collisions: 0, nearMisses: 0,
-        fastTimeCarrying: 0, drops: 0, maxSpeed: 0,
+        fastTimeCarrying: 0, drops: 0, maxSpeed: 0, repairs: 0,
       };
       game.messages.length = 0;
       game.events.length = 0;
@@ -309,9 +427,7 @@
 
       if (res.blocked && Math.abs(robot.speed) > 30) {
         if (robot.impact <= 0.01) {
-          game.stats.collisions++;
-          game.emit('impact', { x: robot.x, y: robot.y, obstacle: res.obstacle });
-          game.say('¡Choque! Cambia de dirección', 'danger', 1.8);
+          game.registerCollision(res.obstacle);
         }
         robot.impact = CFG.ROBOT.impactRecover * 2;
         robot.speed *= 0.12;                  // el robot queda bloqueado
@@ -376,20 +492,30 @@
       }
 
       /* --- 6. Estabilidad del transporte --- */
+      const S = CFG.STABILITY;
       const carrying = cat.state === 'carried';
       if (carrying) {
-        const tooFast = Math.abs(robot.speed) > CFG.ROBOT.speedNormal * 1.12;
+        // Cuanto más rápido va, mucho más rápido se vuelve inestable.
+        // A velocidad normal no carga; a velocidad rápida se llena justo en
+        // el tiempo de tolerancia configurado (el jugador ve el aviso antes).
+        const ratio = Math.abs(robot.speed) / Math.max(1, CFG.ROBOT.speedNormal);
+        const fastRatio = CFG.ROBOT.speedFast / CFG.ROBOT.speedNormal;
+        const tooFast = ratio > 1.02;
         if (tooFast) {
           game.stats.fastTimeCarrying += dt;
-          game.stability.charge += dt / Math.max(0.5, game.stability.tolerance);
-          if (!game.stability.warning &&
-              game.stability.charge >= CFG.STABILITY.warnAt) {
+          // 0 en velocidad normal, 1 a velocidad rápida
+          const severity = P.clamp((ratio - 1.02) / (fastRatio - 1.02), 0, 1);
+          // Curva: a tope llena en ~tolerance, a medio camino tarda más
+          const rate = 0.42 + 0.58 * Math.pow(severity, 0.75);
+          const base = dt / Math.max(0.35, game.stability.tolerance);
+          game.stability.charge += base * rate;
+          game.stability.charge = Math.min(1, game.stability.charge);
+          if (!game.stability.warning && game.stability.charge >= S.warnAt) {
             game.stability.warning = true;
             game.say('¡Cuidado! Estás transportando al gatito demasiado rápido', 'danger', 3.4);
             game.emit('stability-warn', {});
           }
-          if (!game.stability.critical &&
-              game.stability.charge >= CFG.STABILITY.critAt) {
+          if (!game.stability.critical && game.stability.charge >= S.critAt) {
             game.stability.critical = true;
             game.emit('stability-critical', {});
           }
@@ -399,11 +525,16 @@
           }
         } else {
           // Al bajar la velocidad el indicador disminuye poco a poco
-          game.stability.charge = Math.max(0, game.stability.charge - dt * CFG.STABILITY.recoverRate);
-          if (game.stability.charge < CFG.STABILITY.warnAt) {
+          game.stability.charge = Math.max(0,
+            game.stability.charge - dt * S.recoverRate);
+          if (game.stability.charge < S.warnAt) {
             game.stability.warning = false;
             game.stability.critical = false;
           }
+        }
+        // El techo por choques nunca se supera
+        if (game.stability.charge > game.stability.maxCap) {
+          game.stability.charge = game.stability.maxCap;
         }
 
         // Entrega en la veterinaria
@@ -412,6 +543,9 @@
           game.deliverCat();
         }
       }
+
+      /* --- 6b. Taller de reparación --- */
+      game.updateWorkshop(dt);
 
       /* --- 7. Estadísticas de obstáculos evitados --- */
       // Cuenta un "obstáculo evitado" cuando el sensor pasó de cerca/peligro a despejado
@@ -444,6 +578,9 @@
             ? 'Espera a que el gatito vuelva al árbol'
             : 'Llega hasta el gatito y pulsa E';
         case STATE.CARRYING:
+          if (game.health.value < CFG.HEALTH.max * 0.5) {
+            return 'Robot dañado · repara en el TALLER o sigue con cuidado';
+          }
           return 'Lleva al gatito a la VETERINARIA (velocidad moderada)';
         case STATE.DELIVERED:
           return '¡Misión cumplida! Gatito entregado';

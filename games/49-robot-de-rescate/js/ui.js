@@ -25,6 +25,17 @@
       stabilityBar: $('#stability-bar'),
       stabilityText: $('#stability-text'),
       stabilityPanel: $('#stability-panel'),
+      stabilityCap: $('#stability-cap'),
+      stabilityCapText: $('#stability-cap-text'),
+      healthPanel: $('#health-panel'),
+      healthBar: $('#health-bar'),
+      healthTag: $('#health-tag'),
+      healthText: $('#health-text'),
+      workshopRow: $('#workshop-row'),
+      workshopText: $('#workshop-text'),
+      techHealth: $('#tech-health'),
+      techCap: $('#tech-cap'),
+      techWorkshop: $('#tech-workshop'),
       toleranceValue: $('#tolerance-value'),
       timer: $('#timer-value'),
       techDistance: $('#tech-distance'),
@@ -105,18 +116,49 @@
         game.cat.state === 'carried' ? 'carried' :
         game.cat.state === 'falling' || game.cat.state === 'returning' ? 'danger' : 'waiting');
 
-      // Estabilidad
+      // Estabilidad (con techo dinámico por choques)
       const chargePct = Math.round(stab.charge * 100);
+      const capPct = Math.round(stab.maxCap * 100);
       el.stabilityBar.style.width = chargePct + '%';
       el.stabilityBar.className = 'bar-fill ' + (
         stab.charge >= RDR.CONFIG.STABILITY.critAt ? 'danger' :
-        stab.charge >= RDR.CONFIG.STABILITY.warnAt ? 'warn' : 'ok');
+        stab.charge >= RDR.CONFIG.STABILITY.warnAt ? 'warn' :
+        capPct < 100 ? 'capped' : 'ok');
+      el.stabilityCap.style.left = capPct + '%';
+      el.stabilityCapText.textContent = capPct + ' %';
+      el.stabilityCapText.style.color = capPct >= 90 ? '#9fe8ff'
+        : capPct >= 60 ? '#ffd166' : '#ff9f9f';
       el.stabilityText.textContent = game.cat.state === 'carried'
-        ? (stab.charge >= 0.72 ? '¡PELIGRO! El gatito se va a caer'
-          : stab.charge >= 0.35 ? '¡Cuidado! Reduce la velocidad' : 'Transporte estable')
-        : 'Sin gatito a bordo';
-      el.stabilityPanel.classList.toggle('warning', game.cat.state === 'carried' && stab.charge >= 0.35);
-      el.stabilityPanel.classList.toggle('critical', game.cat.state === 'carried' && stab.charge >= 0.72);
+        ? (stab.charge >= 0.65 ? '¡PELIGRO! El gatito se va a caer'
+          : stab.charge >= 0.3 ? '¡Cuidado! Reduce la velocidad' : 'Transporte estable')
+        : (capPct < 100 ? 'Estabilidad reducida: ve al TALLER' : 'Sin gatito a bordo');
+      el.stabilityPanel.classList.toggle('warning',
+        game.cat.state === 'carried' && stab.charge >= 0.3);
+      el.stabilityPanel.classList.toggle('critical',
+        game.cat.state === 'carried' && stab.charge >= 0.65);
+
+      // Salud del robot y taller
+      const hp = game.health.value;
+      const hpPct = Math.round(hp);
+      el.healthBar.style.width = hpPct + '%';
+      el.healthBar.className = 'bar-fill ' + (hpPct > 60 ? 'ok' : hpPct > 25 ? 'warn' : 'danger');
+      el.healthTag.textContent = hpPct > 60 ? 'OK' : hpPct > 25 ? 'DAÑADO' : 'CRÍTICO';
+      el.healthTag.className = 'health-tag ' + (hpPct > 60 ? 'ok' : hpPct > 25 ? 'mid' : 'low');
+      el.healthText.textContent = hpPct + ' % · ' + (
+        game.health.repairing ? 'reparando…'
+          : hpPct >= 100 ? 'sin daños'
+          : hpPct > 25 ? 'revisa el TALLER' : '¡ve al TALLER ya!');
+      el.healthPanel.classList.toggle('mid', hpPct <= 60 && hpPct > 25);
+      el.healthPanel.classList.toggle('low', hpPct <= 25);
+
+      const needsRepair = hpPct < 100 || capPct < 100;
+      el.workshopRow.classList.toggle('active', game.health.repairing);
+      el.workshopRow.classList.toggle('needed', needsRepair && !game.workshop.inZone);
+      el.workshopText.textContent = game.health.repairing
+        ? 'Reparando… ' + Math.max(0, 100 - hpPct) + ' % restante'
+        : game.workshop.inZone
+          ? (needsRepair ? 'Entra en la zona para reparar' : 'Robot al 100 %')
+          : needsRepair ? '¡Ve al TALLER a reparar!' : 'Taller disponible';
 
       // Tiempo
       el.timer.textContent = fmtTime(game.time);
@@ -132,6 +174,10 @@
       el.techCat.textContent = game.cat.state;
       el.techWheels.textContent = robot.speed > 1 ? 'avanzando'
         : robot.speed < -1 ? 'retrocediendo' : 'detenidas';
+      el.techHealth.textContent = Math.round(game.health.value) + ' %';
+      el.techCap.textContent = Math.round(game.stability.maxCap * 100) + ' %';
+      el.techWorkshop.textContent = game.health.repairing ? 'reparando'
+        : game.workshop.inZone ? 'en zona' : 'fuera';
       el.techCollisions.textContent = game.stats.collisions;
       el.techAvoided.textContent = game.stats.obstaclesAvoided;
 
@@ -180,6 +226,13 @@
       } else if (game.stability.charge >= 1 && game.state === 'dropped') {
         el.banner.textContent = '¡El gatito se soltó! Regresa al árbol';
         el.banner.className = 'banner show danger';
+      } else if (game.health.value <= 25) {
+        el.banner.textContent = '¡Robot dañado! Llévalo al TALLER';
+        el.banner.className = 'banner show danger';
+      } else if (game.stability.maxCap < 0.6) {
+        el.banner.textContent = 'Estabilidad máx. ' + Math.round(game.stability.maxCap * 100) +
+          ' % · repara en el TALLER';
+        el.banner.className = 'banner show warn';
       } else if (game.sensor.level === 'danger') {
         el.banner.textContent = '¡ALERTA! Obstáculo a ' + Math.round(game.sensor.cm) + ' cm';
         el.banner.className = 'banner show warn';
@@ -200,6 +253,8 @@
             '<div class="stat"><span>Tiempo total</span><strong>' + fmtTime(game.time) + '</strong></div>' +
             '<div class="stat"><span>Obstáculos evitados</span><strong>' + game.stats.obstaclesAvoided + '</strong></div>' +
             '<div class="stat"><span>Choques</span><strong>' + game.stats.collisions + '</strong></div>' +
+            '<div class="stat"><span>Reparaciones en taller</span><strong>' + game.workshop.repairs + '</strong></div>' +
+            '<div class="stat"><span>Estabilidad final</span><strong>' + Math.round(game.stability.maxCap * 100) + ' %</strong></div>' +
             '<div class="stat"><span>Veces que se cayó el gatito</span><strong>' + game.stats.drops + '</strong></div>';
           el.overlayActions.innerHTML = '';
           const b = doc.createElement('button');
@@ -209,8 +264,8 @@
           el.overlayActions.appendChild(b);
           const b2 = doc.createElement('button');
           b2.className = 'btn';
-          b2.textContent = 'Salir del juego';
-          b2.onclick = function () { root.location.href = '../../index.html'; };
+          b2.textContent = 'Ver el mapa';
+          b2.onclick = function () { hideOverlay(); };
           el.overlayActions.appendChild(b2);
         }
       } else if (el.overlay.classList.contains('win')) {

@@ -8,9 +8,9 @@ JavaScript), sin instalación ni dependencias externas.
 
 | # | Actividad | Descripción | Enlace |
 | --- | --- | --- | --- |
-| 49 | **Robot de rescate simulado** | Conduce un robot móvil con sensor ultrasónico HC-SR04 desde una vista cenital, rescata a un gatito junto al árbol y llévalo hasta la veterinaria sin volcarlo. | [`games/49-robot-de-rescate/`](games/49-robot-de-rescate/index.html) |
+| 49 | **Robot de rescate simulado** | Conduce un robot móvil con sensor ultrasónico HC-SR04 desde una vista cenital, rescata a un gatito junto al árbol y llévalo hasta la veterinaria. Incluye choques con daño al robot y taller de reparación. | [`games/49-robot-de-rescate/`](games/49-robot-de-rescate/index.html) |
 
-El catálogo completo está en [`index.html`](index.html) (se abre en el navegador).
+La raíz [`index.html`](index.html) **abre directamente el juego** (sin portada).
 
 ## 🚀 Cómo ejecutar
 
@@ -35,7 +35,7 @@ estructura de módulos y las pruebas automáticas:
 
 ```
 .
-├── index.html                     # Catálogo de actividades
+├── index.html                     # Redirige directamente al juego
 ├── games/
 │   └── 49-robot-de-rescate/       # Videojuego (HTML + CSS + JS + Canvas 2D)
 │       ├── index.html

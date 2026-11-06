@@ -315,6 +315,63 @@ input[type="range"]::-moz-range-thumb {
 
 .cat-status { font-size: 13px; font-weight: 700; margin-top: 3px; color: #ffe9a8; }
 
+/* barra con techo (estabilidad máxima) */
+.cap-bar { overflow: visible; position: relative; }
+.bar-cap {
+  position: absolute;
+  top: -3px; bottom: -3px;
+  width: 3px;
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 2px;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.7);
+  transition: left 0.2s ease;
+  transform: translateX(-50%);
+  z-index: 2;
+}
+.cap-line {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 7px;
+  padding-top: 6px;
+  border-top: 1px dashed rgba(255,255,255,0.12);
+}
+.cap-line .mono { font-size: 12px; color: #9fe8ff; }
+.bar-fill.capped { background: linear-gradient(90deg, #ff8f5a, #ffb347); }
+
+/* salud del robot */
+.health-panel { border-left: 3px solid rgba(120, 210, 255, 0.5); transition: border-color 0.2s; }
+.health-panel.low { border-left-color: var(--danger); background: rgba(52, 16, 18, 0.88); }
+.health-panel.mid { border-left-color: var(--warn); background: rgba(46, 34, 12, 0.86); }
+.health-tag {
+  font-size: 9.5px; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase;
+  padding: 2px 7px; border-radius: 6px;
+}
+.health-tag.ok { background: rgba(53,224,161,0.16); color: #7df0b6; border: 1px solid rgba(53,224,161,0.4); }
+.health-tag.mid { background: rgba(255,209,102,0.16); color: #ffd166; border: 1px solid rgba(255,209,102,0.4); }
+.health-tag.low { background: rgba(255,95,95,0.18); color: #ff9f9f; border: 1px solid rgba(255,95,95,0.45); }
+
+.workshop-row {
+  display: flex; align-items: center; gap: 7px;
+  margin-top: 8px; padding: 6px 8px;
+  border-radius: 8px;
+  font-size: 11px; font-weight: 700;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--muted);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.workshop-row .ws-icon { font-size: 13px; }
+.workshop-row.needed {
+  background: rgba(255, 205, 80, 0.14);
+  border-color: rgba(255, 205, 80, 0.45);
+  color: #ffe0a0;
+  animation: wsPulse 0.9s infinite alternate;
+}
+.workshop-row.active {
+  background: rgba(53, 224, 161, 0.16);
+  border-color: rgba(53, 224, 161, 0.55);
+  color: #b7ffe1;
+}
+@keyframes wsPulse { from { box-shadow: 0 0 0 rgba(255,205,80,0); } to { box-shadow: 0 0 16px rgba(255,205,80,0.35); } }
+
 /* panel técnico */
 .live {
   display: inline-flex; align-items: center; gap: 5px;
@@ -632,6 +689,7 @@ input[type="range"]::-moz-range-thumb {
 
 @media (max-width: 940px) {
   .hud-right .controls-panel { display: none; }
+  .health-panel .workshop-row { display: none; }
   .hud-right { width: 206px; }
   .hud-left { width: 214px; }
   .sensor-number { font-size: 28px; }
@@ -675,7 +733,7 @@ input[type="range"]::-moz-range-thumb {
 }
 
 @media (max-height: 640px) {
-  .cat-panel, .tolerance-row { display: none; }
+  .cat-panel, .tolerance-row, .workshop-row { display: none; }
   .messages { bottom: 96px; }
 }
 

@@ -9,7 +9,7 @@
 
   const CONFIG = {
     // ----- Dimensiones del mundo (px de simulación) -----
-    WORLD: { width: 2000, height: 1500 },
+    WORLD: { width: 2800, height: 2100 },
 
     // ----- Escala física simulada -----
     // 1 cm real equivale a 2.5 px en el mundo.
@@ -47,28 +47,50 @@
     STABILITY: {
       // Tiempo (segundos) que se tolera la velocidad rápida con el gatito arriba.
       // CONFIGURABLE: se puede cambiar en vivo desde el panel o con ?tolerancia=
-      toleranceSeconds: 4,
-      minTolerance: 1.5,
-      maxTolerance: 10,
-      recoverRate: 0.5,        // fracción que baja por segundo al ir despacio
-      warnAt: 0.35,
-      critAt: 0.72,
+      toleranceSeconds: 2.5,
+      minTolerance: 1,
+      maxTolerance: 8,
+      recoverRate: 0.34,       // fracción que baja por segundo al ir despacio
+      warnAt: 0.3,
+      critAt: 0.65,
+      curveExponent: 1.6,      // reservado para ajustes finos de la curva
+      // La inestabilidad acumulada se reinicia al bajar de este valor
+      resetBelow: 0.04,
+    },
+
+    // ----- Salud del robot (choques) -----
+    HEALTH: {
+      max: 100,
+      // Coste en % de estabilidad del transporte por cada choque
+      collisionPenalty: 32,
+      // Cada cuántos choques (a partir de 0) se aplica la penalización completa
+      // >3 choques => la estabilidad máxima baja a ~30 %
+      floorAfterHits: 30,
+      repairPerSecond: 28,     // % que repara el taller por segundo
+      repairCostFactor: 1,     // multiplicador del tiempo de reparación
     },
 
     // ----- Gatito -----
     CAT: {
-      interactRadiusPx: 100,   // distancia para poder rescatarlo
+      interactRadiusPx: 110,   // distancia para poder rescatarlo
       respawnDelay: 1.9,       // s antes de volver al árbol tras caerse
       carriedScale: 0.86,
     },
 
     // ----- Entrega / veterinaria -----
-    DELIVERY: { radius: 88 },
+    DELIVERY: { radius: 92 },
+
+    // ----- Taller de reparación -----
+    WORKSHOP: {
+      x: 0, y: 0,              // se define en level.js
+      radius: 96,
+      reachRadius: 112,        // radio para poder reparar
+    },
 
     // ----- Cámara -----
     CAMERA: {
-      viewHeight: 940,         // px de mundo visibles en vertical (aprox.)
-      minViewWidth: 1180,
+      viewHeight: 980,         // px de mundo visibles en vertical (aprox.)
+      minViewWidth: 1240,
       smoothing: 6.5,
       lookAhead: 0.18,
     },
@@ -86,6 +108,11 @@
         CONFIG.STABILITY.maxTolerance,
         Math.max(CONFIG.STABILITY.minTolerance, tol)
       );
+    }
+    // Nivel de dificultad opcional: ?dificil=1 reduce la tolerancia
+    if (params.get('dificil') === '1') {
+      CONFIG.STABILITY.toleranceSeconds = 1.5;
+      CONFIG.HEALTH.collisionPenalty = 40;
     }
   } catch (e) { /* entorno sin location (tests) */ }
 

@@ -217,8 +217,12 @@
         case 'crate': S.drawCrate(ctx, o.x, o.y, o.w, o.h); break;
         case 'planter': S.drawPlanter(ctx, o.x, o.y, o.r); break;
         case 'bush': S.drawBush(ctx, o.x, o.y, o.r); break;
+        case 'well': S.drawWell(ctx, o.x, o.y, o.r, t); break;
         case 'barrier': S.drawBarrier(ctx, o.x, o.y, o.w, o.h); break;
         case 'vet': S.drawVet(ctx, level.vet, t); break;
+        case 'workshop':
+          S.drawWorkshop(ctx, o, level.workshop, t, game.health);
+          break;
         default: break;
       }
     });

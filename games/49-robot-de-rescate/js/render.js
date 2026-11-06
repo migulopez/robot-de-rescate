@@ -22,6 +22,7 @@
     let lastSensorDanger = false;
     let deliveryFx = 0;
     let dustTimer = 0;
+    let sparkTimer = 0;
     const g_deliveryLabel = true;
     const floaters = [];   // textos flotantes del mundo
 
@@ -52,6 +53,11 @@
           spawnBurst(particles, game.robot.x + Math.cos(a) * 34, game.robot.y + Math.sin(a) * 34,
             '#ffd166', 14, { angle: a, spread: 1.6, speed: 190, life: 0.5, size: 4 });
           camera.shake = 9;
+          floaters.push({
+            x: game.robot.x, y: game.robot.y - 46,
+            text: '−' + Math.round(100 - game.stability.maxCap * 100) + ' % estab.',
+            color: '#ff8080', life: 1.4, max: 1.4,
+          });
         } else if (e.type === 'cat-pickup') {
           spawnBurst(particles, game.cat.x, game.cat.y, '#ffd1e0', 22,
             { speed: 140, life: 0.9, size: 4.5, gravity: -60 });
@@ -72,6 +78,11 @@
             { speed: 180, life: 1.4, size: 4 });
         } else if (e.type === 'sensor-alert') {
           camera.shake = Math.max(camera.shake, 4);
+        } else if (e.type === 'repaired') {
+          spawnBurst(particles, game.robot.x, game.robot.y, '#8ef7b6', 34,
+            { speed: 160, life: 1.1, size: 4.5, gravity: -40 });
+          floaters.push({ x: game.robot.x, y: game.robot.y - 50, text: '✔ 100 %',
+            color: '#8ef7b6', life: 1.6, max: 1.6 });
         }
       }
       events.length = 0;
@@ -125,7 +136,8 @@
           { scale: 1.75 * riding, time: elapsed + 0.7, wobble: game.stability.charge, blink });
         // aura de seguridad
         ctx.save();
-        const danger = game.stability.charge;
+        const danger = Math.max(game.stability.charge,
+          game.stability.maxCap < 0.999 ? 0.45 : 0);
         ctx.globalAlpha = 0.25 + danger * 0.5;
         ctx.strokeStyle = danger > 0.7 ? '#ff6b6b' : danger > 0.35 ? '#ffd166' : '#8ef7b6';
         ctx.lineWidth = 2.5;
@@ -186,6 +198,14 @@
         ctx.restore();
       }
 
+      // etiqueta del taller cuando hace falta reparar
+      if (!game.workshop.inZone &&
+          (game.health.value < 95 || game.stability.maxCap < 0.95)) {
+        const W2 = game.level.workshop;
+        S.drawWorldLabel(ctx, W2.x, W2.y + 128, 'TALLER · ¡Repara aquí!', '#ffd166',
+          '800 15px "Trebuchet MS", system-ui, sans-serif');
+      }
+
       // Etiqueta de estado sobre el robot
       if (game.state !== 'delivered') {
         const label = game.cat.state === 'carried'
@@ -193,7 +213,7 @@
           : (game.interactAvailable ? '' : 'Buscando gatito');
         if (label) {
           const color = game.stability.warning ? '#ff8080' : '#d8f3ff';
-          S.drawWorldLabel(ctx, game.robot.x, game.robot.y - 96, label, color,
+          S.drawWorldLabel(ctx, game.robot.x, game.robot.y - 108, label, color,
             '700 15px "Trebuchet MS", system-ui, sans-serif');
         }
       }
@@ -243,6 +263,20 @@
       if (catBlinkTimer <= 0) { catBlink = 0.14; catBlinkTimer = 2.5 + Math.random() * 3.5; }
       if (catBlink > 0) catBlink -= dt;
       deliveryFx = Math.max(0, deliveryFx - dt * 0.5);
+
+      // chispas de reparación en el taller
+      if (game.workshop.inZone && game.health.repairing) {
+        sparkTimer -= dt;
+        if (sparkTimer <= 0) {
+          sparkTimer = 0.06;
+          const W2 = game.level.workshop;
+          const a = Math.random() * Math.PI * 2;
+          const d = 26 + Math.random() * 34;
+          spawnBurst(particles, W2.x + Math.cos(a) * d, W2.y + Math.sin(a) * d,
+            Math.random() > 0.5 ? '#ffd166' : '#8ef7b6', 1,
+            { speed: 90, life: 0.5, size: 3, gravity: 60 });
+        }
+      }
 
       // polvo de las ruedas al circular
       dustTimer -= dt;

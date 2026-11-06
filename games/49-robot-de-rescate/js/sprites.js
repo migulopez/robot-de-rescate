@@ -381,6 +381,180 @@
   }
 
   /* ---------------------------------------------------------
+   * POZO / FUENTE (obstáculo circular)
+   * ------------------------------------------------------- */
+  function drawWell(ctx, x, y, r, t) {
+    shadowEllipse(ctx, x + r * 0.12, y + r * 0.2, r * 1.05, r * 0.9, 0.3);
+    // brocal de piedra
+    const g = ctx.createRadialGradient(x - r * 0.3, y - r * 0.35, r * 0.1, x, y, r);
+    g.addColorStop(0, '#b8bfc6');
+    g.addColorStop(0.65, '#8b949d');
+    g.addColorStop(1, '#5f686f');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#48525a';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    // dovelas
+    ctx.strokeStyle = 'rgba(60, 70, 78, 0.5)';
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.moveTo(x + Math.cos(a) * r * 0.72, y + Math.sin(a) * r * 0.72);
+      ctx.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r);
+      ctx.stroke();
+    }
+    // agua
+    const w = ctx.createRadialGradient(x - r * 0.2, y - r * 0.2, r * 0.05, x, y, r * 0.72);
+    w.addColorStop(0, '#7fd6f2');
+    w.addColorStop(0.7, '#3d9fc4');
+    w.addColorStop(1, '#256f8f');
+    ctx.fillStyle = w;
+    ctx.beginPath();
+    ctx.arc(x, y, r * 0.72, 0, Math.PI * 2);
+    ctx.fill();
+    // ondas animadas
+    ctx.strokeStyle = 'rgba(230, 250, 255, 0.55)';
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 3; i++) {
+      const ph = ((t * 0.5 + i / 3) % 1);
+      ctx.globalAlpha = 1 - ph;
+      ctx.beginPath();
+      ctx.arc(x, y, r * 0.2 + ph * r * 0.5, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    // brote de agua
+    ctx.fillStyle = 'rgba(235, 252, 255, 0.85)';
+    ctx.beginPath();
+    ctx.arc(x, y, r * 0.1, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  /* ---------------------------------------------------------
+   * TALLER DE REPARACIÓN (vista cenital)
+   * ------------------------------------------------------- */
+  function drawWorkshop(ctx, b, zone, t, state) {
+    const x = b.x, y = b.y, w = b.w, h = b.h;
+    const cx = x + w / 2, cy = y + h / 2;
+
+    if (zone) {
+      // Zona de reparación en el suelo
+      const pulse = 0.5 + 0.5 * Math.sin(t * 2.6);
+      const repairing = state && state.repairing;
+      const color = repairing ? '#8ef7b6' : '#ffcd50';
+      ctx.save();
+      ctx.translate(zone.x, zone.y);
+      const r = zone.radius || 92;
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.fillStyle = repairing
+        ? 'rgba(90, 240, 160, ' + (0.16 + pulse * 0.16) + ')'
+        : 'rgba(255, 205, 80, ' + (0.10 + pulse * 0.10) + ')';
+      ctx.fill();
+      ctx.setLineDash([14, 12]);
+      ctx.lineDashOffset = -t * 22;
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = color;
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      // llave inglesa dibujada en el suelo
+      ctx.strokeStyle = color;
+      ctx.globalAlpha = 0.85;
+      ctx.lineWidth = 6;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.38, Math.PI * 0.15, Math.PI * 1.05);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.34, -r * 0.2);
+      ctx.lineTo(r * 0.34, r * 0.2);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+      ctx.font = '700 14px "Trebuchet MS", system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = color;
+      ctx.fillText('TALLER DE REPARACIÓN', 0, r * 0.72);
+      ctx.restore();
+    }
+
+    S_shadow(ctx, cx + 10, cy + 14, w * 0.56, h * 0.6, 0.3);
+
+    // edificio: tejado metálico con claraboyas
+    const g = ctx.createLinearGradient(x, y, x + w, y + h);
+    g.addColorStop(0, '#5c6b7a');
+    g.addColorStop(0.5, '#46525f');
+    g.addColorStop(1, '#333d47');
+    ctx.fillStyle = g;
+    roundRect(ctx, x, y, w, h, 12);
+    ctx.fill();
+    ctx.strokeStyle = '#20272e';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    // chapa ondulada
+    ctx.strokeStyle = 'rgba(180, 200, 220, 0.18)';
+    ctx.lineWidth = 2;
+    for (let i = 1; i < 9; i++) {
+      ctx.beginPath();
+      ctx.moveTo(x + 8, y + (h / 9) * i);
+      ctx.lineTo(x + w - 8, y + (h / 9) * i);
+      ctx.stroke();
+    }
+
+    // claraboyas
+    [-1, 1].forEach(function (side) {
+      const lx = cx + side * w * 0.22;
+      const lg = ctx.createLinearGradient(lx - 24, y + 16, lx + 24, y + 46);
+      lg.addColorStop(0, '#9fd8f5');
+      lg.addColorStop(1, '#4f90b8');
+      ctx.fillStyle = lg;
+      roundRect(ctx, lx - 24, y + 16, 48, 30, 6);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(20, 40, 55, 0.8)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    });
+
+    // puerta de servicio en la fachada inferior
+    ctx.fillStyle = '#1c2329';
+    roundRect(ctx, cx - 34, y + h - 26, 68, 26, 5);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255, 205, 80, 0.85)';
+    for (let i = 0; i < 5; i++) ctx.fillRect(cx - 26 + i * 11, y + h - 20, 7, 3);
+
+    // cartel TALLER
+    const signW = w * 0.8, signH = 40;
+    const sx = cx - signW / 2, sy = y + h - 34;
+    ctx.save();
+    roundRect(ctx, sx, sy, signW, signH, 9);
+    const sg = ctx.createLinearGradient(sx, sy, sx, sy + signH);
+    sg.addColorStop(0, '#4a3520');
+    sg.addColorStop(1, '#2a1d10');
+    ctx.fillStyle = sg;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255, 205, 80, 0.75)';
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+    ctx.font = '800 21px "Trebuchet MS", system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor = 'rgba(255, 200, 90, ' + (0.5 + Math.sin(t * 2.2) * 0.3) + ')';
+    ctx.shadowBlur = 12;
+    ctx.fillStyle = '#ffe0a0';
+    ctx.fillText('TALLER', cx, sy + signH / 2 + 1);
+    ctx.restore();
+  }
+
+  // alias interno de la sombra
+  function S_shadow(ctx, x, y, rx, ry, a) { shadowEllipse(ctx, x, y, rx, ry, a); }
+
+  /* ---------------------------------------------------------
    * VETERINARIA (vista superior con fachada)
    * ------------------------------------------------------- */
   function drawVet(ctx, v, t) {
@@ -898,7 +1072,7 @@
 
   RDR.sprites = {
     drawCat, drawTree, drawRock, drawBench, drawCrate, drawPlanter, drawBush,
-    drawBarrier, drawVet, drawDeliveryZone, drawRobot, drawSensorCone,
+    drawBarrier, drawVet, drawDeliveryZone, drawRobot, drawSensorCone, drawWorkshop, drawWell,
     drawWorldLabel, roundRect, shadowEllipse,
     CAT_GRID, CAT_PALETTE,
   };
