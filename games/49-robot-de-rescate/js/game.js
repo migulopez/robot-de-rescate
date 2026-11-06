@@ -107,7 +107,7 @@
     game.onDogBite = function () {
       const H = CFG.HEALTH;
       game.stats.dogBites = (game.stats.dogBites || 0) + 1;
-      game.health.value = Math.max(0, game.health.value - H.collisionPenalty * 0.7);
+      game.health.value = Math.max(0, game.health.value - H.collisionPenalty * 0.55);
       game.stability.maxCap = Math.max(H.floorAfterHits / 100,
         game.stability.maxCap - (H.collisionPenalty / 100) * 0.5);
 
@@ -121,7 +121,7 @@
         }
       } else {
         game.say('🐕 ¡El perro te ha mordido! −' +
-          Math.round(H.collisionPenalty * 0.7) + ' % de salud', 'danger', 4.5);
+          Math.round(H.collisionPenalty * 0.55) + ' % de salud', 'danger', 4.5);
       }
       if (game.health.value <= 0) {
         game.say('💥 Robot destruido por el perro · ve al TALLER', 'danger', 5);

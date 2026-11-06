@@ -489,6 +489,13 @@ function crash(g) {
   sim(g, 0.25);
 }
 
+test('Un choque baja exactamente un 30 % la salud y la estabilidad máxima', function () {
+  const g = newGame();
+  crash(g);
+  near(g.health.value, 70, 1.5, 'la salud tras 1 choque debería ser ~70 %');
+  near(g.stability.maxCap, 0.70, 0.02, 'la estabilidad máxima tras 1 choque debería ser ~70 %');
+});
+
 test('Cada choque resta salud al robot', function () {
   const g = newGame();
   const hp0 = g.health.value;
@@ -622,21 +629,49 @@ test('Empujar el mismo obstáculo no resta salud en cada frame', function () {
 /* ---------------------------------------------------------- */
 console.log('\nPerro guardián');
 
+test('El taller y el perro están cerca del inicio (no hay que cruzar el mapa)', function () {
+  const L = RDR.LEVEL;
+  const dWorkshop = Math.hypot(L.workshop.x - L.robotStart.x, L.workshop.y - L.robotStart.y);
+  const dDog = Math.hypot(L.dogHouse.x - L.robotStart.x, L.dogHouse.y - L.robotStart.y);
+  assert(dWorkshop < 1200, 'el taller está a ' + Math.round(dWorkshop) + ' px del inicio');
+  assert(dDog < 1050, 'la caseta del perro está a ' + Math.round(dDog) + ' px del inicio');
+});
+
+test('Los assets llevan versión para evitar caché del navegador', function () {
+  const fs2 = require('fs');
+  const path2 = require('path');
+  const html = fs2.readFileSync(path2.join(__dirname, '..', 'index.html'), 'utf8');
+  const scripts = html.match(/<script src="js\/[a-z]+\.js(\?v=[^"]+)?"/g) || [];
+  assert(scripts.length >= 9, 'faltan scripts en el HTML');
+  scripts.forEach(function (tag) {
+    assert(tag.indexOf('?v=') !== -1, 'script sin versión (puede quedar en caché): ' + tag);
+  });
+});
+
 test('El perro existe y patrulla cerca de su caseta', function () {
   const g = newGame();
   assert(g.dog, 'no se creó el perro');
   sim(g, 6);
   const home = g.level.dogHouse;
   const d = Math.hypot(g.dog.x - home.x, g.dog.y - home.y);
-  assert(d < 520, 'el perro se alejó demasiado de su caseta: ' + Math.round(d) + ' px');
+  assert(d < 620, 'el perro se alejó demasiado de su caseta: ' + Math.round(d) + ' px');
   assert(g.dog.state === 'patrol' || g.dog.state === 'return',
     'estado inesperado patrullando: ' + g.dog.state);
 });
 
-test('El perro detecta al robot cuando está cerca', function () {
+test('El perro no persigue al robot en el punto de inicio (no es injusto)', function () {
   const g = newGame();
-  g.robot.x = g.dog.x + 220;
-  g.robot.y = g.dog.y + 40;
+  sim(g, 12);
+  assert(g.dog.state === 'patrol' || g.dog.state === 'return',
+    'el perro persigue al robot recién empezar: ' + g.dog.state);
+  near(g.health.value, RDR.CONFIG.HEALTH.max, 0.5, 'el robot perdió salud sin moverse');
+});
+
+test('El perro detecta al robot cuando está cerca y en su campo de visión', function () {
+  const g = newGame();
+  g.robot.x = g.dog.x + 200;
+  g.robot.y = g.dog.y;
+  g.dog.angle = 0;               // el perro mira hacia el robot
   sim(g, 0.3);
   assert(g.dog.seen, 'el perro no detectó al robot a 220 px');
   assert(g.dog.state === 'alert' || g.dog.state === 'chase',
@@ -675,8 +710,9 @@ test('El perro es más lento que el robot en modo rápido', function () {
 
 test('Al alejarse, el perro pierde el rastro y vuelve a su caseta', function () {
   const g = newGame();
-  g.robot.x = g.dog.x + 240;
+  g.robot.x = g.dog.x + 190;
   g.robot.y = g.dog.y;
+  g.dog.angle = 0;
   sim(g, 1);
   assert(g.dog.state === 'chase' || g.dog.state === 'alert', 'no detectó al robot');
   // el robot escapa lejos

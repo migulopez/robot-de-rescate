@@ -48,6 +48,15 @@
     }
     root.requestAnimationFrame(frame);
 
+    // Comprobación de versión: si falta el perro, el navegador tiene JS viejo
+    if (!game.dog) {
+      const el = root.document.getElementById('build-tag');
+      if (el) {
+        el.textContent = '⚠ Versión antigua en caché · pulsa Ctrl+Shift+R';
+        el.style.color = '#ff8f8f';
+      }
+    }
+
     // Expone para depuración y pruebas
     root.__RDR_GAME__ = game;
     root.__RDR_RENDERER__ = renderer;

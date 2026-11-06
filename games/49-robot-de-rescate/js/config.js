@@ -62,7 +62,7 @@
     HEALTH: {
       max: 100,
       // Coste en % de estabilidad del transporte por cada choque
-      collisionPenalty: 32,
+      collisionPenalty: 30,
       // Cada cuántos choques (a partir de 0) se aplica la penalización completa
       // >3 choques => la estabilidad máxima baja a ~30 %
       floorAfterHits: 30,
@@ -86,14 +86,14 @@
       speedPatrol: 82,          // px/s patrullando
       speedChase: 235,          // px/s persiguiendo (más lento que el robot en modo rápido)
       radius: 26,               // radio de colisión
-      detectRangePx: 620,       // alcance de detección (olfato/vista)
-      detectHalfAngle: Math.PI * 0.62, // campo de visión amplio
-      loseRangePx: 900,         // si se aleja más que esto, deja de perseguir
+      detectRangePx: 520,       // alcance de detección (olfato/vista)
+      detectHalfAngle: Math.PI * 0.3,  // cono de visión (~±54°)
+      loseRangePx: 780,         // si se aleja más que esto, deja de perseguir
       loseTime: 3.2,            // s sin verlo antes de abandonar la persecución
       barkCooldown: 4.5,        // s entre ladridos
-      leashPatrolRadius: 330,   // radio de patrulla alrededor de su caseta
+      leashPatrolRadius: 260,   // radio de patrulla alrededor de su caseta
       catchRadius: 8,           // margen extra para "morder" al robot
-      biteCooldown: 1.6,        // s entre mordiscos
+      biteCooldown: 2.2,        // s entre mordiscos
     },
 
     // ----- Taller de reparación -----

@@ -281,6 +281,173 @@
       ctx.restore();
     }
 
+    /* ---------- flechas guía hacia el perro y el taller ---------- */
+    function drawEdgeArrow(wx, wy, color, label) {
+      const screen = worldToScreen(wx, wy);
+      const margin = 78;
+      const insideX = screen.x > margin && screen.x < viewW - margin;
+      const insideY = screen.y > margin && screen.y < viewH - margin;
+      if (insideX && insideY) return false;   // ya se ve en pantalla
+
+      const cx = viewW / 2;
+      const cy = viewH / 2;
+      const a = Math.atan2(screen.y - cy, screen.x - cx);
+      const rx = Math.min(cx - margin, Math.abs((viewW / 2 - margin) / Math.cos(a)) || 1e6);
+      const ry = Math.min(cy - margin, Math.abs((viewH / 2 - margin) / Math.sin(a)) || 1e6);
+      const r = Math.min(rx, ry);
+      const px = cx + Math.cos(a) * r;
+      const py = cy + Math.sin(a) * r;
+
+      ctx.save();
+      ctx.translate(px, py);
+      ctx.rotate(a);
+      ctx.globalAlpha = 0.9;
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.moveTo(16, 0);
+      ctx.lineTo(-8, 11);
+      ctx.lineTo(-2, 0);
+      ctx.lineTo(-8, -11);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(8, 20, 16, 0.8)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.restore();
+
+      // etiqueta (siempre horizontal), hacia el exterior para no tapar el mapa
+      ctx.save();
+      ctx.font = '800 11px "Trebuchet MS", system-ui, sans-serif';
+      const text = label;
+      const tw = ctx.measureText(text).width + 22;
+      const labelY = py > viewH / 2 ? py + 13 : py - 32;
+      ctx.globalAlpha = 0.92;
+      ctx.fillStyle = 'rgba(8, 20, 16, 0.88)';
+      S.roundRect(ctx, px - tw / 2, labelY, tw, 19, 9);
+      ctx.fill();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.4;
+      ctx.stroke();
+      // punto indicador
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(px - tw / 2 + 9, labelY + 9.5, 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = color;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(text, px + 5, labelY + 10);
+      ctx.restore();
+      return true;
+    }
+
+    /** Convierte coordenadas del mundo a pantalla (sin sacudida de cámara). */
+    function worldToScreen(wx, wy) {
+      return {
+        x: (wx - camera.x) * camera.zoom + viewW / 2,
+        y: (wy - camera.y) * camera.zoom + viewH / 2,
+      };
+    }
+
+    /* ---------- minimapa ---------- */
+    const MINI_W = 210;
+    function drawMinimap(viewW2, viewH2) {
+      const L = game.level;
+      const scale = MINI_W / L.width;
+      const h = L.height * scale;
+      const x = viewW2 - MINI_W - 14;
+      const y = viewH2 - h - 14;
+
+      ctx.save();
+      ctx.globalAlpha = 0.92;
+      // fondo
+      ctx.fillStyle = 'rgba(8, 20, 16, 0.92)';
+      S.roundRect(ctx, x - 4, y - 4, MINI_W + 8, h + 8, 10);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(120, 220, 200, 0.35)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // césped
+      ctx.fillStyle = '#2f5f38';
+      ctx.fillRect(x, y, MINI_W, h);
+
+      // ruta
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(scale, scale);
+      ctx.strokeStyle = 'rgba(205, 180, 137, 0.85)';
+      ctx.lineWidth = 132;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      L.decor.road.forEach(function (p, i) { i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y); });
+      ctx.stroke();
+      (L.decor.sideRoads || []).forEach(function (r) {
+        ctx.lineWidth = 74;
+        ctx.beginPath();
+        r.forEach(function (p, i) { i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y); });
+        ctx.stroke();
+      });
+      ctx.restore();
+
+      function dot(wx, wy, color, r2, ring) {
+        const px = x + wx * scale, py = y + wy * scale;
+        if (ring) {
+          ctx.beginPath();
+          ctx.arc(px, py, r2 + 3.5 + Math.sin(elapsed * 6) * 1.6, 0, Math.PI * 2);
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 1.6;
+          ctx.stroke();
+        }
+        ctx.beginPath();
+        ctx.arc(px, py, r2, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+      }
+
+      // objetivos
+      dot(L.vet.x, L.vet.y, '#4fd1ff', 4.5);
+      dot(L.workshop.x, L.workshop.y, '#ffcd50', 4.5, true);
+      dot(L.dogHouse.x, L.dogHouse.y, '#a8763f', 3);
+      dot(L.tree.x, L.tree.y, '#2f9e44', 4);
+      if (game.cat.state !== 'delivered') dot(game.cat.x, game.cat.y, '#ffd1e0', 3.5, true);
+
+      // perro (rojo si persigue)
+      if (game.dog) {
+        const chasing = game.dog.isChasing();
+        dot(game.dog.x, game.dog.y,
+          chasing ? '#ff5a5a' : '#e0a060', chasing ? 4 : 3, chasing);
+      }
+
+      // robot
+      const rx = x + game.robot.x * scale;
+      const ry = y + game.robot.y * scale;
+      ctx.save();
+      ctx.translate(rx, ry);
+      ctx.rotate(game.robot.angle + Math.PI / 2);
+      ctx.fillStyle = '#8ef7b6';
+      ctx.beginPath();
+      ctx.moveTo(0, -6);
+      ctx.lineTo(4.5, 5);
+      ctx.lineTo(0, 2.5);
+      ctx.lineTo(-4.5, 5);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(6, 26, 18, 0.9)';
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+      ctx.restore();
+
+      // leyenda
+      ctx.globalAlpha = 1;
+      ctx.font = '700 9px "Trebuchet MS", system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = 'rgba(200, 240, 230, 0.75)';
+      ctx.fillText('MAPA', x + MINI_W / 2, y + h + 2);
+      ctx.restore();
+    }
+
     /* ---------- marco de render ---------- */
     function render(dt) {
       elapsed += dt;
@@ -351,6 +518,21 @@
         ctx.fillRect(0, 0, viewW, viewH);
       }
       lastSensorDanger = game.sensor.level === 'danger';
+
+      // flechas guía: perro (si está cerca) y taller (si el robot está dañado)
+      if (game.dog) {
+        const dogDist = Math.hypot(game.dog.x - game.robot.x, game.dog.y - game.robot.y);
+        if (dogDist < 1100 || game.dog.isChasing()) {
+          drawEdgeArrow(game.dog.x, game.dog.y,
+            game.dog.isChasing() ? '#ff6b6b' : '#ffc37a',
+            game.dog.isChasing() ? '¡PERRO!' : 'PERRO');
+        }
+      }
+      if (game.health.value < 99.5 || game.stability.maxCap < 0.995) {
+        drawEdgeArrow(game.level.workshop.x, game.level.workshop.y, '#ffcd50', 'TALLER');
+      }
+
+      drawMinimap(viewW, viewH);
     }
 
     let lastW = 0, lastH = 0;

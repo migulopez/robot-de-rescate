@@ -115,8 +115,9 @@ o editando `CONFIG.STABILITY.toleranceSeconds` en `js/config.js`.
 ### 5. Choques, salud del robot y taller de reparación
 
 - **Cualquier contacto** con un obstáculo resta salud (antes sólo se registraba por
-  encima de 30 px/s y los toques suaves no hacían daño). El daño es **proporcional al
-  golpe**: un roce ≈ −11 % de salud, un impacto a tope ≈ −42 %.
+  encima de 30 px/s y los toques suaves no hacían daño).
+- **Cada choque quita un 30 % de salud y un 30 % de estabilidad máxima**: tras 1 choque
+  quedas al 70 %, tras 2 al 40 % y a partir de 3 se queda en el mínimo del 30 %.
 - Cada choque también **reduce la estabilidad máxima** del transporte. Con **3 choques**
   la estabilidad máxima queda en **30 %** y **nunca baja del 30 %** por muchos choques
   que se den.
@@ -126,7 +127,7 @@ o editando `CONFIG.STABILITY.toleranceSeconds` en `js/config.js`.
   aunque vayas despacio, la inestabilidad nunca supera ese techo, así que con el robot
   dañado es mucho más fácil que el gatito se caiga.
 - Un choque mientras transportas al gatito también lo **desestabiliza** en el acto.
-- El **TALLER** (a mitad de camino, junto a la ruta) tiene una zona amarilla: entra en
+- El **TALLER** (a un tercio del recorrido, ~770 px del inicio) tiene una zona amarilla: entra en
   ella y el robot se repara automáticamente subiendo salud y estabilidad máxima hasta
   el **100 %** en pocos segundos, con chispas y contador de progreso.
 - Cuando hace falta reparar, el HUD avisa («¡Ve al TALLER a reparar!») y el taller
@@ -152,19 +153,30 @@ o editando `CONFIG.STABILITY.toleranceSeconds` en `js/config.js`.
 
 ### 8. El perro guardián 🐕
 
-- Vive en una **caseta** a mitad del recorrido y **patrulla** en círculos a su alrededor.
+- Vive en una **caseta** cerca del inicio (~940 px, junto al ramal del camino) y
+  **patrulla** en círculos a su alrededor. Se ve nada más empezar.
 - **Detecta al robot** combinando distancia, cono de visión (±112°) y oído: si el robot
   corre, lo oye desde más lejos (el cono se dibuja en el suelo).
 - Al detectarlo se **alerta** (signo «!», ladrido y aviso en pantalla) y comienza la
-  **persecución**. Si te alcanza, te **muerde**: −22 % de salud y, si llevas al gatito,
-  se asusta y la inestabilidad sube de golpe.
+  **persecución**. Si te alcanza, te **muerde**: −16 % de salud (una vez cada 2,2 s) y,
+  si llevas al gatito, se asusta y la inestabilidad sube de golpe.
 - Es **más lento que el robot en modo rápido**: la estrategia es huir y **romper la línea
   de visión** detrás de árboles o edificios. Si te alejas, te pierde y **vuelve a su caseta**.
 - La **zona del taller es refugio**: el perro no entra y no puede morderte allí.
 - El HUD muestra su estado (**TRANQUILO / CERCA / TE DETECTÓ / ¡PERSIGUIENDO!**) y el
   panel técnico su estado interno.
 
-### 9. Mensajes (pop-ups)
+### 9. Orientación: minimapa y flechas guía
+
+- **Minimapa** en la esquina inferior derecha con la ruta, la veterinaria, el taller, la
+  caseta del perro, el gatito, el perro (rojo si te persigue) y el robot con su rumbo.
+- **Flechas guía** en el borde de la pantalla cuando el taller (si el robot está dañado)
+  o el perro están fuera de vista, con la distancia de referencia.
+- Pie de página con la **versión del build** y los assets cargados con `?v=`, para que
+  el navegador nunca muestre una versión antigua en caché (si detecta JS viejo, avisa
+  con «pulsa Ctrl+Shift+R»).
+
+### 10. Mensajes (pop-ups)
 
 - Los avisos se crean **una sola vez** y no se reconstruyen en cada fotograma, así que su
   animación no parpadea.
@@ -214,7 +226,7 @@ games/49-robot-de-rescate/
 │   ├── robot-real.jpg      # Fotografía del prototipo real
 │   └── gatito-referencia.png
 ├── tests/
-│   └── run-tests.js        # 49 pruebas automáticas de las mecánicas
+│   └── run-tests.js        # 53 pruebas automáticas de las mecánicas
 └── README.md
 ```
 
@@ -245,7 +257,7 @@ caída por exceso de velocidad, recuperación del indicador, retorno del gatito 
 árbol, tolerancia configurable, condición de victoria, choques/taller y
 alcanzabilidad del escenario.
 
-Resultado actual: **49 pruebas superadas, 0 fallidas**.
+Resultado actual: **53 pruebas superadas, 0 fallidas**.
 
 Incluyen, además de lo anterior: penalización de salud y de estabilidad máxima por
 choque, daño en roces suaves, que empujar no reste salud por frame, mínimo del 30 % tras

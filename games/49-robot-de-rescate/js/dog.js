@@ -76,7 +76,8 @@
       const dist = Math.hypot(dx, dy);
       dog.distanceToRobot = dist;
       if (dist > cfg.loseRangePx) return false;
-      if (dist < cfg.detectRangePx * 0.32) return true;  // muy cerca: lo detecta siempre
+      // "Muy cerca" = a menos de la mitad de su radio de patrulla (no todo el rango)
+      if (dist < cfg.leashPatrolRadius * 0.62) return true;
 
       const ang = Math.atan2(dy, dx);
       const diff = Math.abs(P.normAngle(ang - dog.angle));
@@ -89,7 +90,7 @@
 
       if (inCone) return true;
       // Fuera del cono sólo lo detecta si está muy cerca (olfato/oído)
-      return dist < cfg.detectRangePx * 0.45;
+      return dist < cfg.detectRangePx * 0.3;
     };
 
     /* ---------- Movimiento con colisiones ---------- */
@@ -157,6 +158,12 @@
           break;
         }
         case 'chase': {
+          // no se aleja demasiado de su territorio
+          const fromHome = Math.hypot(dog.x - dog.home.x, dog.y - dog.home.y);
+          if (fromHome > cfg.loseRangePx * 0.85) {
+            dog.state = 'return';
+            break;
+          }
           if (sees) {
             dog.lostTimer = 0;
             moveTowards(robot.x, robot.y, cfg.speedChase, dt);
