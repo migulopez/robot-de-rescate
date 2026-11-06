@@ -1,0 +1,470 @@
+/* =========================================================
+ * 49. Robot de rescate simulado
+ * game.js — Estado, reglas y simulación (independiente del dibujo)
+ * ========================================================= */
+(function (root) {
+  'use strict';
+  const RDR = (root.RDR = root.RDR || {});
+  const P = RDR.physics;
+
+  const STATE = {
+    SEARCHING: 'searching',      // buscando al gatito
+    CARRYING: 'carrying',        // llevando al gatito
+    DELIVERED: 'delivered',      // misión cumplida
+    DROPPED: 'dropped',          // el gatito se cayó (reinicio del rescate)
+  };
+
+  function createGame(config) {
+    const CFG = config || RDR.CONFIG;
+    const LEVEL = RDR.LEVEL;
+
+    const game = {
+      config: CFG,
+      level: LEVEL,
+      state: STATE.SEARCHING,
+      paused: false,
+      finished: false,
+      time: 0,                    // tiempo de partida (s)
+      robot: {
+        x: LEVEL.robotStart.x,
+        y: LEVEL.robotStart.y,
+        angle: LEVEL.robotStart.angle,
+        speed: 0,                 // px/s (negativo = reversa)
+        targetSpeed: 0,
+        fast: false,
+        wheelSpin: 0,             // para animar las ruedas
+        impact: 0,                // temporizador de animación de golpe
+        blocked: false,
+        motor: 'detenido',
+      },
+      cat: {
+        x: LEVEL.catStart.x,
+        y: LEVEL.catStart.y,
+        state: 'waiting',         // waiting | carried | falling | returning | delivered
+        fallProgress: 0,
+        wobble: 0,
+        respawnTimer: 0,
+        onRobot: false,
+      },
+      stability: {
+        tolerance: CFG.STABILITY.toleranceSeconds,
+        /** 0 = estable, 1 = el gatito se cae */
+        charge: 0,
+        warning: false,
+        critical: false,
+      },
+      sensor: {
+        cm: CFG.SENSOR.maxRangeCm,
+        detected: false,
+        level: 'clear',
+        distancePx: 0,
+        angle: 0,
+        originX: 0,
+        originY: 0,
+        timer: 0,
+      },
+      stats: {
+        obstaclesAvoided: 0,
+        collisions: 0,
+        nearMisses: 0,
+        fastTimeCarrying: 0,
+        drops: 0,
+        maxSpeed: 0,
+      },
+      messages: [],
+      events: [],                 // eventos para efectos visuales/sonido
+      input: { forward: false, back: false, left: false, right: false, brake: false },
+      interactAvailable: false,
+      nearTreeCat: false,
+      lastSensorLevel: 'clear',
+    };
+
+    /* ---------------- Mensajes / eventos ---------------- */
+
+    game.emit = function (type, payload) {
+      game.events.push({ type, payload: payload || {}, t: game.time });
+    };
+
+    game.say = function (text, tone, duration) {
+      game.messages.push({
+        text, tone: tone || 'info',
+        life: duration || 2.6, maxLife: duration || 2.6,
+      });
+      if (game.messages.length > 4) game.messages.shift();
+    };
+
+    /* ---------------- Entrada ---------------- */
+
+    game.setKey = function (action, pressed) {
+      if (!(action in game.input)) return;
+      game.input[action] = pressed;
+    };
+
+    game.toggleSpeed = function () {
+      game.robot.fast = !game.robot.fast;
+      game.emit('speed-toggle', { fast: game.robot.fast });
+      game.say(game.robot.fast ? 'Modo RÁPIDO activado' : 'Modo NORMAL activado',
+        game.robot.fast ? 'warn' : 'ok', 1.6);
+    };
+
+    /** Tecla / botón de interacción (E) */
+    game.interact = function () {
+      if (game.finished || game.paused) return;
+      if (game.state === STATE.SEARCHING && game.interactAvailable) {
+        game.pickUpCat();
+      } else if (game.state === STATE.CARRYING) {
+        // Soltar voluntariamente solo es útil fuera de la veterinaria
+        game.dropCatManually();
+      }
+    };
+
+    /* ---------------- Mecánica del gatito ---------------- */
+
+    game.pickUpCat = function () {
+      if (game.cat.state !== 'waiting') return;
+      game.cat.state = 'carried';
+      game.cat.onRobot = true;
+      game.state = STATE.CARRYING;
+      game.stability.charge = 0;
+      game.stability.warning = false;
+      game.stability.critical = false;
+      game.emit('cat-pickup', {});
+      game.say('¡Gatito rescatado! Llévalo a la VETERINARIA', 'ok', 3.2);
+    };
+
+    game.startCatFall = function (reason) {
+      if (game.cat.state !== 'carried') return;
+      game.cat.state = 'falling';
+      game.cat.onRobot = false;
+      game.cat.fallProgress = 0;
+      game.cat.fallX = game.robot.x;
+      game.cat.fallY = game.robot.y;
+      game.stats.drops++;
+      game.state = STATE.DROPPED;
+      game.stability.charge = 1;
+      game.emit('cat-fall', { reason });
+      game.say('¡El gatito se cayó! Vuelve junto al árbol', 'danger', 3.4);
+      // Encuentra un punto libre cerca del robot para dejarlo en el suelo
+      let spot = { x: game.robot.x, y: game.robot.y };
+      for (let i = 0; i < 24; i++) {
+        const a = (i / 24) * Math.PI * 2;
+        const d = 46 + i * 1.5;
+        const cx = game.robot.x + Math.cos(a) * d;
+        const cy = game.robot.y + Math.sin(a) * d;
+        if (cx > 40 && cy > 40 && cx < LEVEL.width - 40 && cy < LEVEL.height - 40 &&
+            !P.collidesAny(cx, cy, 26, LEVEL.obstacles)) { spot = { x: cx, y: cy }; break; }
+      }
+      game.cat.landX = spot.x;
+      game.cat.landY = spot.y;
+    };
+
+    game.dropCatManually = function () {
+      if (game.cat.state !== 'carried') return;
+      // Si el robot está en la zona de entrega, se entrega; si no, se suelta.
+      const d = Math.hypot(game.robot.x - LEVEL.delivery.x, game.robot.y - LEVEL.delivery.y);
+      if (d < LEVEL.delivery.r) { game.deliverCat(); return; }
+      game.cat.state = 'waiting';
+      game.cat.onRobot = false;
+      game.cat.x = game.robot.x + Math.cos(game.robot.angle) * -60;
+      game.cat.y = game.robot.y + Math.sin(game.robot.angle) * -60;
+      game.state = STATE.SEARCHING;
+      game.say('Gatito en el suelo. Acércate y pulsa E para recogerlo', 'warn', 2.8);
+      game.emit('cat-drop', {});
+    };
+
+    game.deliverCat = function () {
+      if (game.state === STATE.DELIVERED) return;
+      game.cat.state = 'delivered';
+      game.cat.onRobot = false;
+      game.state = STATE.DELIVERED;
+      game.finished = true;
+      game.stability.charge = 0;
+      game.emit('deliver', { time: game.time, stats: game.stats });
+      game.say('¡MISIÓN CUMPLIDA!', 'ok', 6);
+    };
+
+    /* ---------------- Reinicio ---------------- */
+
+    game.reset = function (keepConfig) {
+      game.state = STATE.SEARCHING;
+      game.paused = false;
+      game.finished = false;
+      game.time = 0;
+      game.input.forward = game.input.back = false;
+      game.input.left = game.input.right = false;
+      game.input.brake = false;
+      game._hadNearThreat = false;
+      game.robot.x = LEVEL.robotStart.x;
+      game.robot.y = LEVEL.robotStart.y;
+      game.robot.angle = LEVEL.robotStart.angle;
+      game.robot.speed = 0;
+      game.robot.targetSpeed = 0;
+      game.robot.fast = false;
+      game.robot.wheelSpin = 0;
+      game.robot.impact = 0;
+      game.cat.x = LEVEL.catStart.x;
+      game.cat.y = LEVEL.catStart.y;
+      game.cat.state = 'waiting';
+      game.cat.onRobot = false;
+      game.cat.wobble = 0;
+      game.cat.fallProgress = 0;
+      game.cat.respawnTimer = 0;
+      game.cat.deliveryT = 0;
+      game.stability.charge = 0;
+      game.stability.warning = false;
+      game.stability.critical = false;
+      game.sensor.cm = CFG.SENSOR.maxRangeCm;
+      game.sensor.detected = false;
+      game.sensor.level = 'clear';
+      game.stats = {
+        obstaclesAvoided: 0, collisions: 0, nearMisses: 0,
+        fastTimeCarrying: 0, drops: 0, maxSpeed: 0,
+      };
+      game.messages.length = 0;
+      game.events.length = 0;
+      game.lastSensorLevel = 'clear';
+      game.say('¡Rescate iniciado! Encuentra al gatito junto al árbol', 'info', 3);
+    };
+
+    /* ---------------- Simulación ---------------- */
+
+    game.updateSensor = function () {
+      const extra = (game.cat.state === 'waiting')
+        ? { x: game.cat.x, y: game.cat.y, r: 14 } : null;
+      const r = P.readUltrasonic(game.robot, LEVEL.obstacles, CFG.SENSOR, extra);
+      game.sensor.cm = r.cm;
+      game.sensor.detected = r.detected;
+      game.sensor.level = r.level;
+      game.sensor.distancePx = r.distancePx;
+      game.sensor.angle = r.angle;
+      game.sensor.originX = r.originX;
+      game.sensor.originY = r.originY;
+
+      // Advertencias por cambio de nivel
+      if (r.level !== game.lastSensorLevel) {
+        if (r.level === 'near') {
+          game.say('Obstáculo detectado a ' + Math.round(r.cm) + ' cm', 'warn', 2.2);
+        } else if (r.level === 'danger') {
+          game.say('¡ALERTA! Obstáculo a corta distancia (' + Math.round(r.cm) + ' cm)', 'danger', 2.4);
+          game.emit('sensor-alert', {});
+        }
+        game.lastSensorLevel = r.level;
+      }
+      return r;
+    };
+
+    /**
+     * Un paso de simulación con dt fijo.
+     * @param {number} dt segundos
+     */
+    game.step = function (dt) {
+      if (game.paused || game.finished) {
+        // Aun finalizado, deja que el gatito termine su animación de entrega.
+        game.updateEffects(dt);
+        return;
+      }
+      game.time += dt;
+      const robot = game.robot;
+      const C = CFG.ROBOT;
+      const input = game.input;
+
+      /* --- 1. Velocidad objetivo --- */
+      const baseSpeed = robot.fast ? C.speedFast : C.speedNormal;
+      let target = 0;
+      if (input.forward) target = baseSpeed;
+      else if (input.back) target = -baseSpeed * C.reverseFactor;
+      if (input.brake) target = 0;
+
+      robot.targetSpeed = target;
+      const rate = (Math.abs(target) < Math.abs(robot.speed) || input.brake)
+        ? C.brakeDecel : C.accel;
+      if (robot.speed < target) robot.speed = Math.min(target, robot.speed + rate * dt);
+      else if (robot.speed > target) robot.speed = Math.max(target, robot.speed - rate * dt);
+      if (Math.abs(robot.speed) < 1.5 && target === 0) robot.speed = 0;
+
+      /* --- 2. Giro (solo tiene efecto real si se está moviendo lento o quieto) --- */
+      const turnDir = (input.left ? -1 : 0) + (input.right ? 1 : 0);
+      if (turnDir !== 0) {
+        const turnRate = Math.abs(robot.speed) > 40 ? C.turnSpeedMoving : C.turnSpeed;
+        // A velocidad alta el robot gira menos (como un robot real con ruedas diferenciales)
+        const speedPenalty = 1 / (1 + Math.abs(robot.speed) / (C.speedFast * 1.4));
+        const delta = turnDir * turnRate * speedPenalty * dt;
+        // Intenta girar; si el giro mete el chasis en un obstáculo, se bloquea
+        const probeDist = Math.abs(robot.speed) * dt + 26;
+        const px = robot.x + Math.cos(robot.angle + delta) * probeDist * 0.6;
+        const py = robot.y + Math.sin(robot.angle + delta) * probeDist * 0.6;
+        if (!P.collidesAny(px, py, C.radius * 0.92, LEVEL.obstacles)) {
+          robot.angle = P.normAngle(robot.angle + delta);
+        } else {
+          robot.blocked = true;
+        }
+      }
+
+      /* --- 3. Desplazamiento con colisiones --- */
+      const before = { x: robot.x, y: robot.y };
+      const res = P.moveRobot(robot, dt, LEVEL.obstacles, C.radius);
+      const moved = Math.hypot(robot.x - before.x, robot.y - before.y);
+      robot.wheelSpin += (moved / 26) * (robot.speed >= 0 ? 1 : -1);
+      robot.blocked = res.blocked;
+
+      if (res.blocked && Math.abs(robot.speed) > 30) {
+        if (robot.impact <= 0.01) {
+          game.stats.collisions++;
+          game.emit('impact', { x: robot.x, y: robot.y, obstacle: res.obstacle });
+          game.say('¡Choque! Cambia de dirección', 'danger', 1.8);
+        }
+        robot.impact = CFG.ROBOT.impactRecover * 2;
+        robot.speed *= 0.12;                  // el robot queda bloqueado
+      }
+      if (robot.impact > 0) robot.impact = Math.max(0, robot.impact - dt);
+
+      // Estado del motor (para el panel técnico)
+      if (input.brake) robot.motor = 'frenando';
+      else if (Math.abs(robot.speed) < 2) robot.motor = 'detenido';
+      else robot.motor = robot.speed > 0 ? (robot.fast ? 'adelante (rápido)' : 'adelante') : 'reversa';
+
+      game.stats.maxSpeed = Math.max(game.stats.maxSpeed, Math.abs(robot.speed));
+
+      /* --- 4. Sensor ultrasónico (muestreado, como el hardware real) --- */
+      game.sensor.timer -= dt;
+      if (game.sensor.timer <= 0) {
+        game.sensor.timer = CFG.SENSOR.updateInterval;
+        game.updateSensor();
+      }
+
+      /* --- 5. Gatito: interacción y seguimiento --- */
+      const cat = game.cat;
+      const distToCat = Math.hypot(robot.x - cat.x, robot.y - cat.y);
+
+      if (cat.state === 'waiting') {
+        game.interactAvailable = distToCat < CFG.CAT.interactRadiusPx &&
+          game.state === STATE.SEARCHING;
+      } else {
+        game.interactAvailable = false;
+      }
+
+      if (cat.state === 'carried') {
+        // El gatito viaja sobre la plataforma de transporte
+        cat.x = robot.x + Math.cos(robot.angle) * 4;
+        cat.y = robot.y + Math.sin(robot.angle) * 4;
+        cat.wobble = game.stability.charge;
+      }
+
+      if (cat.state === 'falling') {
+        cat.fallProgress = Math.min(1, cat.fallProgress + dt * 1.9);
+        const t = cat.fallProgress;
+        cat.x = cat.fallX + (cat.landX - cat.fallX) * t;
+        cat.y = cat.fallY + (cat.landY - cat.fallY) * t;
+        if (cat.fallProgress >= 1) {
+          cat.state = 'returning';
+          cat.respawnTimer = 0;
+          game.say('El gatito vuelve junto al árbol...', 'warn', 2);
+        }
+      }
+
+      if (cat.state === 'returning') {
+        cat.respawnTimer += dt;
+        if (cat.respawnTimer > CFG.CAT.respawnDelay) {
+          cat.state = 'waiting';
+          cat.x = LEVEL.catStart.x;
+          cat.y = LEVEL.catStart.y;
+          cat.wobble = 0;
+          game.state = STATE.SEARCHING;
+          game.stability.charge = 0;
+          game.emit('cat-respawn', {});
+        }
+      }
+
+      /* --- 6. Estabilidad del transporte --- */
+      const carrying = cat.state === 'carried';
+      if (carrying) {
+        const tooFast = Math.abs(robot.speed) > CFG.ROBOT.speedNormal * 1.12;
+        if (tooFast) {
+          game.stats.fastTimeCarrying += dt;
+          game.stability.charge += dt / Math.max(0.5, game.stability.tolerance);
+          if (!game.stability.warning &&
+              game.stability.charge >= CFG.STABILITY.warnAt) {
+            game.stability.warning = true;
+            game.say('¡Cuidado! Estás transportando al gatito demasiado rápido', 'danger', 3.4);
+            game.emit('stability-warn', {});
+          }
+          if (!game.stability.critical &&
+              game.stability.charge >= CFG.STABILITY.critAt) {
+            game.stability.critical = true;
+            game.emit('stability-critical', {});
+          }
+          if (game.stability.charge >= 1) {
+            game.stability.charge = 1;
+            game.startCatFall('speed');
+          }
+        } else {
+          // Al bajar la velocidad el indicador disminuye poco a poco
+          game.stability.charge = Math.max(0, game.stability.charge - dt * CFG.STABILITY.recoverRate);
+          if (game.stability.charge < CFG.STABILITY.warnAt) {
+            game.stability.warning = false;
+            game.stability.critical = false;
+          }
+        }
+
+        // Entrega en la veterinaria
+        const d = Math.hypot(robot.x - LEVEL.delivery.x, robot.y - LEVEL.delivery.y);
+        if (d < LEVEL.delivery.r) {
+          game.deliverCat();
+        }
+      }
+
+      /* --- 7. Estadísticas de obstáculos evitados --- */
+      // Cuenta un "obstáculo evitado" cuando el sensor pasó de cerca/peligro a despejado
+      if (game.sensor.level === 'clear' && game._hadNearThreat) {
+        game.stats.obstaclesAvoided++;
+        game._hadNearThreat = false;
+      }
+      if (game.sensor.level !== 'clear') game._hadNearThreat = true;
+
+      game.updateEffects(dt);
+    };
+
+    /** Animación de los mensajes y del sistema de partículas. */
+    game.updateEffects = function (dt) {
+      for (let i = game.messages.length - 1; i >= 0; i--) {
+        game.messages[i].life -= dt;
+        if (game.messages[i].life <= 0) game.messages.splice(i, 1);
+      }
+      if (game.state === STATE.DELIVERED) {
+        game.cat.deliveryT = Math.min(1, (game.cat.deliveryT || 0) + dt * 2.2);
+      }
+    };
+
+    /* ---------------- Consultas de estado ---------------- */
+
+    game.objectiveText = function () {
+      switch (game.state) {
+        case STATE.SEARCHING:
+          return game.cat.state === 'returning'
+            ? 'Espera a que el gatito vuelva al árbol'
+            : 'Llega hasta el gatito y pulsa E';
+        case STATE.CARRYING:
+          return 'Lleva al gatito a la VETERINARIA (velocidad moderada)';
+        case STATE.DELIVERED:
+          return '¡Misión cumplida! Gatito entregado';
+        case STATE.DROPPED:
+          return 'Recupera al gatito junto al árbol';
+        default:
+          return '';
+      }
+    };
+
+    game.catStatusText = function () {
+      if (game.cat.state === 'carried') return 'A bordo del robot';
+      if (game.cat.state === 'delivered') return 'Entregado';
+      if (game.cat.state === 'falling' || game.cat.state === 'returning') return 'Se cayó';
+      return 'Pendiente de rescate';
+    };
+
+    game.reset();
+    return game;
+  }
+
+  RDR.STATE = STATE;
+  RDR.createGame = createGame;
+})(typeof globalThis !== 'undefined' ? globalThis : this);
