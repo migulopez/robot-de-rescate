@@ -9,7 +9,7 @@
 
   const CONFIG = {
     // ----- Dimensiones del mundo (px de simulación) -----
-    WORLD: { width: 2800, height: 2100 },
+    WORLD: { width: 4200, height: 3200 },
 
     // ----- Escala física simulada -----
     // 1 cm real equivale a 2.5 px en el mundo.
@@ -66,6 +66,7 @@
       // Cada cuántos choques (a partir de 0) se aplica la penalización completa
       // >3 choques => la estabilidad máxima baja a ~30 %
       floorAfterHits: 30,
+      collisionCooldown: 0.55, // s entre choques que restan salud
       repairPerSecond: 28,     // % que repara el taller por segundo
       repairCostFactor: 1,     // multiplicador del tiempo de reparación
     },
@@ -80,6 +81,21 @@
     // ----- Entrega / veterinaria -----
     DELIVERY: { radius: 92 },
 
+    // ----- Perro guardián (persigue al robot si lo detecta) -----
+    DOG: {
+      speedPatrol: 82,          // px/s patrullando
+      speedChase: 235,          // px/s persiguiendo (más lento que el robot en modo rápido)
+      radius: 26,               // radio de colisión
+      detectRangePx: 620,       // alcance de detección (olfato/vista)
+      detectHalfAngle: Math.PI * 0.62, // campo de visión amplio
+      loseRangePx: 900,         // si se aleja más que esto, deja de perseguir
+      loseTime: 3.2,            // s sin verlo antes de abandonar la persecución
+      barkCooldown: 4.5,        // s entre ladridos
+      leashPatrolRadius: 330,   // radio de patrulla alrededor de su caseta
+      catchRadius: 8,           // margen extra para "morder" al robot
+      biteCooldown: 1.6,        // s entre mordiscos
+    },
+
     // ----- Taller de reparación -----
     WORKSHOP: {
       x: 0, y: 0,              // se define en level.js
@@ -89,8 +105,8 @@
 
     // ----- Cámara -----
     CAMERA: {
-      viewHeight: 980,         // px de mundo visibles en vertical (aprox.)
-      minViewWidth: 1240,
+      viewHeight: 1000,        // px de mundo visibles en vertical (aprox.)
+      minViewWidth: 1280,
       smoothing: 6.5,
       lookAhead: 0.18,
     },

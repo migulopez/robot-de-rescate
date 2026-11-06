@@ -203,7 +203,7 @@
     const t = opts.time;
     const terrain = opts.terrain;
 
-    if (terrain) ctx.drawImage(terrain, 0, 0);
+    if (terrain) ctx.drawImage(terrain, 0, 0, level.width, level.height);
 
     // zona de entrega (debajo del edificio)
     S.drawDeliveryZone(ctx, level.delivery, t, game.state === 'carrying');
@@ -218,6 +218,7 @@
         case 'planter': S.drawPlanter(ctx, o.x, o.y, o.r); break;
         case 'bush': S.drawBush(ctx, o.x, o.y, o.r); break;
         case 'well': S.drawWell(ctx, o.x, o.y, o.r, t); break;
+        case 'doghouse': S.drawDogHouse(ctx, o, t); break;
         case 'barrier': S.drawBarrier(ctx, o.x, o.y, o.w, o.h); break;
         case 'vet': S.drawVet(ctx, level.vet, t); break;
         case 'workshop':

@@ -8,7 +8,7 @@ JavaScript), sin instalación ni dependencias externas.
 
 | # | Actividad | Descripción | Enlace |
 | --- | --- | --- | --- |
-| 49 | **Robot de rescate simulado** | Conduce un robot móvil con sensor ultrasónico HC-SR04 desde una vista cenital, rescata a un gatito junto al árbol y llévalo hasta la veterinaria. Incluye choques con daño al robot y taller de reparación. | [`games/49-robot-de-rescate/`](games/49-robot-de-rescate/index.html) |
+| 49 | **Robot de rescate simulado** | Conduce un robot móvil con sensor ultrasónico HC-SR04 desde una vista cenital, rescata a un gatito junto al árbol y llévalo hasta la veterinaria. Incluye choques con daño al robot, taller de reparación y un perro guardián que te detecta y persigue. | [`games/49-robot-de-rescate/`](games/49-robot-de-rescate/index.html) |
 
 La raíz [`index.html`](index.html) **abre directamente el juego** (sin portada).
 

@@ -114,9 +114,14 @@ o editando `CONFIG.STABILITY.toleranceSeconds` en `js/config.js`.
 
 ### 5. Choques, salud del robot y taller de reparación
 
-- Cada choque **daña el robot** (−32 % de salud) y **reduce la estabilidad máxima** del
-  transporte. Con **3 choques** la estabilidad máxima queda en **30 %** y **nunca baja
-  del 30 %** por muchos choques que se den.
+- **Cualquier contacto** con un obstáculo resta salud (antes sólo se registraba por
+  encima de 30 px/s y los toques suaves no hacían daño). El daño es **proporcional al
+  golpe**: un roce ≈ −11 % de salud, un impacto a tope ≈ −42 %.
+- Cada choque también **reduce la estabilidad máxima** del transporte. Con **3 choques**
+  la estabilidad máxima queda en **30 %** y **nunca baja del 30 %** por muchos choques
+  que se den.
+- Empujar el mismo obstáculo no resta salud en cada fotograma: sólo cuenta el **inicio**
+  del contacto (con un pequeño enfriamiento).
 - La barra de estabilidad muestra un **tope blanco** con el porcentaje máximo actual:
   aunque vayas despacio, la inestabilidad nunca supera ese techo, así que con el robot
   dañado es mucho más fácil que el gatito se caiga.
@@ -137,12 +142,35 @@ o editando `CONFIG.STABILITY.toleranceSeconds` en `js/config.js`.
 
 ### 7. Escenario ampliado
 
-- Mapa de **2800 × 2100 px** (antes 2000 × 1500) con **134 obstáculos**: árboles, rocas,
+- Mapa de **4200 × 3200 px** (antes 2800 × 2100) con **237 obstáculos**: árboles, rocas,
   arbustos, macetas, bancas, cajas y barreras distribuidas por todo el parque.
-- Ruta principal en diagonal desde el árbol hasta la veterinaria, con ramales de tierra
-  hacia el **taller** y el **pozo/fuente** central.
+- **Ruta larga y serpenteante** (más de 3500 px en línea recta y ~5000 px de recorrido
+  real) desde el árbol hasta la veterinaria, con ramales de tierra hacia el **taller**,
+  el **pozo/fuente** central y la zona del perro.
 - El generador de obstáculos deja siempre un **pasillo libre** sobre la ruta y verifica
   con BFS que el gatito, el taller y la veterinaria son alcanzables desde el inicio.
+
+### 8. El perro guardián 🐕
+
+- Vive en una **caseta** a mitad del recorrido y **patrulla** en círculos a su alrededor.
+- **Detecta al robot** combinando distancia, cono de visión (±112°) y oído: si el robot
+  corre, lo oye desde más lejos (el cono se dibuja en el suelo).
+- Al detectarlo se **alerta** (signo «!», ladrido y aviso en pantalla) y comienza la
+  **persecución**. Si te alcanza, te **muerde**: −22 % de salud y, si llevas al gatito,
+  se asusta y la inestabilidad sube de golpe.
+- Es **más lento que el robot en modo rápido**: la estrategia es huir y **romper la línea
+  de visión** detrás de árboles o edificios. Si te alejas, te pierde y **vuelve a su caseta**.
+- La **zona del taller es refugio**: el perro no entra y no puede morderte allí.
+- El HUD muestra su estado (**TRANQUILO / CERCA / TE DETECTÓ / ¡PERSIGUIENDO!**) y el
+  panel técnico su estado interno.
+
+### 9. Mensajes (pop-ups)
+
+- Los avisos se crean **una sola vez** y no se reconstruyen en cada fotograma, así que su
+  animación no parpadea.
+- Los **pop-ups de choque** aparecen en grande (rojo, con sacudida) y duran **4,5–5 s**:
+  muestran la salud restante y la estabilidad máxima actual.
+- Un aviso repetido **se refresca** en vez de duplicarse.
 
 ---
 
@@ -153,6 +181,7 @@ o editando `CONFIG.STABILITY.toleranceSeconds` en `js/config.js`.
 - Lectura grande del sensor ultrasónico con barra de rango y estado.
 - Indicador de estabilidad del transporte con **tope máximo** dinámico y control de tolerancia.
 - **Salud del robot** con avisos de daño y estado del taller (disponible / necesario / reparando).
+- **Estado del perro guardián** (tranquilo / cerca / te detectó / persiguiendo).
 - Estado del gatito (pendiente / a bordo / se cayó / entregado).
 - **Panel técnico en tiempo real**: distancia medida, velocidad, estado del motor,
   estado del transporte, detección de obstáculos, ruedas, estado del gatito,
@@ -172,7 +201,8 @@ games/49-robot-de-rescate/
 │   └── game.css            # Estilos de la interfaz y controles táctiles
 ├── js/
 │   ├── config.js           # Parámetros centrales (velocidades, sensor, tolerancia)
-│   ├── level.js            # Escenario: obstáculos, rutas, árbol, veterinaria
+│   ├── level.js            # Escenario: obstáculos, rutas, árbol, veterinaria, taller, caseta
+│   ├── dog.js              # Perro guardián: patrulla, detección y persecución
 │   ├── physics.js          # Colisiones, raycasting del sensor y movimiento
 │   ├── game.js             # Estado, reglas y simulación con paso fijo
 │   ├── sprites.js          # Dibujo 2D procedimental (robot, gatito, objetos)
@@ -184,7 +214,7 @@ games/49-robot-de-rescate/
 │   ├── robot-real.jpg      # Fotografía del prototipo real
 │   └── gatito-referencia.png
 ├── tests/
-│   └── run-tests.js        # 37 pruebas automáticas de las mecánicas
+│   └── run-tests.js        # 49 pruebas automáticas de las mecánicas
 └── README.md
 ```
 
@@ -215,12 +245,14 @@ caída por exceso de velocidad, recuperación del indicador, retorno del gatito 
 árbol, tolerancia configurable, condición de victoria, choques/taller y
 alcanzabilidad del escenario.
 
-Resultado actual: **37 pruebas superadas, 0 fallidas**.
+Resultado actual: **49 pruebas superadas, 0 fallidas**.
 
 Incluyen, además de lo anterior: penalización de salud y de estabilidad máxima por
-choque, mínimo del 30 % tras 3+ choques, que la carga nunca supere el techo, reparación
-completa en el taller, alcanzabilidad del taller, tamaño del mapa y redirección de la
-portada al juego.
+choque, daño en roces suaves, que empujar no reste salud por frame, mínimo del 30 % tras
+3+ choques, que la carga nunca supere el techo, reparación completa en el taller,
+alcanzabilidad del taller, tamaño del mapa, redirección portada→juego, pop-ups estables y
+duraderos, y el comportamiento del perro (patrulla, detección, no-detección a distancia,
+persecución y mordisco, huida y retorno, refugio del taller y susto al gatito).
 
 ---
 
@@ -251,6 +283,7 @@ reproduce la vista superior del prototipo físico (imagen de referencia incluida
 ## 🔧 Ideas para ampliar
 
 - Añadir más gatitos u obstáculos móviles.
+- Más animales (gatos callejeros, palomas) con comportamientos propios.
 - Convertir el mapa en un laberinto generado aleatoriamente.
 - Registrar los tiempos en `localStorage` para crear un ranking.
 - Añadir un modo multijugador por turnos con el mismo escenario.

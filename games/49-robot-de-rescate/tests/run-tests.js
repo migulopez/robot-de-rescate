@@ -9,7 +9,7 @@ const path = require('path');
 const vm = require('vm');
 
 const JS_DIR = path.join(__dirname, '..', 'js');
-['config', 'level', 'physics', 'game'].forEach(function (f) {
+['config', 'level', 'physics', 'dog', 'game'].forEach(function (f) {
   vm.runInThisContext(fs.readFileSync(path.join(JS_DIR, f + '.js'), 'utf8'), { filename: f });
 });
 
@@ -565,13 +565,161 @@ test('El taller está al alcance del robot desde el inicio', function () {
 });
 
 /* ---------------------------------------------------------- */
+console.log('\nPop-ups y mensajes');
+
+test('Los mensajes tienen id estable y no se duplican', function () {
+  const g = newGame();
+  g.say('Hola', 'info', 3);
+  const m1 = g.messages[g.messages.length - 1];
+  const id = m1.id;
+  g.say('Hola', 'info', 3);
+  const repeated = g.messages.filter(function (m) { return m.text === 'Hola'; });
+  assert(repeated.length === 1, 'el mensaje se duplicó');
+  assert(repeated[0].id === id, 'se creó un mensaje nuevo en lugar de refrescarlo');
+});
+
+test('Los pop-ups de choque duran varios segundos', function () {
+  const g = newGame();
+  crash(g);
+  const msg = g.messages.filter(function (m) { return m.text.indexOf('Choque') !== -1; })[0];
+  assert(msg, 'no se generó el pop-up de choque');
+  assert(msg.maxLife >= 4, 'el pop-up dura sólo ' + msg.maxLife + ' s');
+  // y sigue visible un segundo después
+  sim(g, 1);
+  assert(g.messages.some(function (m) { return m.id === msg.id; }),
+    'el pop-up desapareció demasiado rápido');
+});
+
+test('Un roce suave contra un obstáculo también quita salud', function () {
+  const g = newGame();
+  const tree = g.level.obstacles.find(function (o) { return o.main; });
+  // Colocar el robot muy cerca del árbol y avanzar despacio
+  g.robot.x = tree.x;
+  g.robot.y = tree.y + tree.r + RDR.CONFIG.ROBOT.radius + 3;
+  g.robot.angle = -Math.PI / 2;
+  g.robot.speed = 0;
+  g._wasBlocked = false;
+  g._collisionCooldown = 0;
+  g.setKey('forward', true);
+  sim(g, 1.2);
+  g.setKey('forward', false);
+  assert(g.health.value < RDR.CONFIG.HEALTH.max,
+    'la salud no bajó con un contacto suave (sigue en ' + g.health.value + ')');
+});
+
+test('Empujar el mismo obstáculo no resta salud en cada frame', function () {
+  const g = newGame();
+  const tree = g.level.obstacles.find(function (o) { return o.main; });
+  g.robot.x = tree.x;
+  g.robot.y = tree.y + tree.r + 120;
+  g.robot.angle = -Math.PI / 2;
+  g.setKey('forward', true);
+  sim(g, 4);
+  assert(g.stats.collisions <= 2,
+    'se contaron ' + g.stats.collisions + ' choques empujando un solo obstáculo');
+});
+
+/* ---------------------------------------------------------- */
+console.log('\nPerro guardián');
+
+test('El perro existe y patrulla cerca de su caseta', function () {
+  const g = newGame();
+  assert(g.dog, 'no se creó el perro');
+  sim(g, 6);
+  const home = g.level.dogHouse;
+  const d = Math.hypot(g.dog.x - home.x, g.dog.y - home.y);
+  assert(d < 520, 'el perro se alejó demasiado de su caseta: ' + Math.round(d) + ' px');
+  assert(g.dog.state === 'patrol' || g.dog.state === 'return',
+    'estado inesperado patrullando: ' + g.dog.state);
+});
+
+test('El perro detecta al robot cuando está cerca', function () {
+  const g = newGame();
+  g.robot.x = g.dog.x + 220;
+  g.robot.y = g.dog.y + 40;
+  sim(g, 0.3);
+  assert(g.dog.seen, 'el perro no detectó al robot a 220 px');
+  assert(g.dog.state === 'alert' || g.dog.state === 'chase',
+    'el perro no reaccionó: ' + g.dog.state);
+});
+
+test('El perro NO detecta al robot si está lejos', function () {
+  const g = newGame();
+  g.robot.x = g.dog.x + 1500;
+  g.robot.y = g.dog.y + 1500;
+  sim(g, 0.3);
+  assert(!g.dog.seen, 'el perro detectó al robot a 2000 px');
+  assert(g.dog.state === 'patrol', 'el perro se alertó sin motivo: ' + g.dog.state);
+});
+
+test('El perro persigue al robot y le muerde (baja la salud)', function () {
+  const g = newGame();
+  g.robot.x = g.dog.x + 260;
+  g.robot.y = g.dog.y;
+  const hp0 = g.health.value;
+  let chased = false;
+  for (let i = 0; i < 120 * 12; i++) {
+    g.step(DT);
+    if (g.dog.state === 'chase') chased = true;
+    if (g.health.value < hp0) break;
+  }
+  assert(chased, 'el perro nunca llegó a perseguir');
+  assert(g.health.value < hp0, 'el perro no llegó a morder al robot');
+  assert(g.stats.dogBites >= 1, 'no se registró el mordisco');
+});
+
+test('El perro es más lento que el robot en modo rápido', function () {
+  assert(RDR.CONFIG.DOG.speedChase < RDR.CONFIG.ROBOT.speedFast,
+    'el perro es más rápido que el robot: no se podría escapar');
+});
+
+test('Al alejarse, el perro pierde el rastro y vuelve a su caseta', function () {
+  const g = newGame();
+  g.robot.x = g.dog.x + 240;
+  g.robot.y = g.dog.y;
+  sim(g, 1);
+  assert(g.dog.state === 'chase' || g.dog.state === 'alert', 'no detectó al robot');
+  // el robot escapa lejos
+  g.robot.x = 200;
+  g.robot.y = 3000;
+  sim(g, 14);
+  assert(g.dog.state === 'return' || g.dog.state === 'patrol',
+    'el perro sigue persiguiendo tras perder el rastro: ' + g.dog.state);
+});
+
+test('La zona del taller es un refugio: el perro deja de perseguir allí', function () {
+  const g = newGame();
+  const w = g.level.workshop;
+  g.robot.x = w.x;
+  g.robot.y = w.y;
+  g.dog.x = w.x + 60;
+  g.dog.y = w.y + 40;
+  sim(g, 0.3);
+  assert(g.workshop.inZone, 'el robot no está en la zona del taller');
+  assert(g.dog.state !== 'chase' && g.dog.state !== 'bite',
+    'el perro sigue atacando dentro del taller: ' + g.dog.state);
+});
+
+test('Un mordisco con el gatito a bordo lo desestabiliza', function () {
+  const g = carryingInLane();
+  g.dog.x = g.robot.x + 60;
+  g.dog.y = g.robot.y;
+  const c0 = g.stability.charge;
+  g.onDogBite();
+  assert(g.stability.charge > c0, 'el mordisco no desestabilizó el transporte');
+});
+
+/* ---------------------------------------------------------- */
 console.log('\nEscenario ampliado');
 
-test('El mundo mide al menos 2800 x 2100 px y tiene muchos obstáculos', function () {
+test('El mundo es amplio y alargado, con muchos obstáculos', function () {
   const L = RDR.LEVEL;
-  assert(L.width >= 2800 && L.height >= 2100,
+  assert(L.width >= 4000 && L.height >= 3000,
     'tamaño del mundo: ' + L.width + 'x' + L.height);
-  assert(L.obstacles.length >= 60, 'sólo hay ' + L.obstacles.length + ' obstáculos');
+  assert(L.obstacles.length >= 150, 'sólo hay ' + L.obstacles.length + ' obstáculos');
+  // el recorrido debe ser largo: distancia en línea recta árbol → veterinaria
+  const d = Math.hypot(L.delivery.x - L.catStart.x, L.delivery.y - L.catStart.y);
+  assert(d > 3500, 'el recorrido es demasiado corto: ' + Math.round(d) + ' px');
 });
 
 test('La portada raíz redirige directamente al juego', function () {

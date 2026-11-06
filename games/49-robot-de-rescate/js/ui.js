@@ -28,6 +28,10 @@
       stabilityCap: $('#stability-cap'),
       stabilityCapText: $('#stability-cap-text'),
       healthPanel: $('#health-panel'),
+      dogPanel: $('#dog-panel'),
+      dogTag: $('#dog-tag'),
+      dogText: $('#dog-text'),
+      techDog: $('#tech-dog'),
       healthBar: $('#health-bar'),
       healthTag: $('#health-tag'),
       healthText: $('#health-text'),
@@ -73,7 +77,7 @@
     function cmToPx(cm) { return cm + ' cm'; }
 
     /* ---------------- Actualización del HUD ---------------- */
-    let msgSignature = '';
+    const msgNodes = {};
 
     function update(dt) {
       const robot = game.robot;
@@ -151,6 +155,20 @@
       el.healthPanel.classList.toggle('mid', hpPct <= 60 && hpPct > 25);
       el.healthPanel.classList.toggle('low', hpPct <= 25);
 
+      // Perro guardián
+      if (el.dogPanel) {
+        const dst = game.dogStatusText();
+        el.dogTag.textContent = dst.level === 'chase' ? '¡PERSIGUIENDO!'
+          : dst.level === 'alert' ? 'TE DETECTÓ'
+          : dst.level === 'near' ? 'CERCA' : 'TRANQUILO';
+        el.dogTag.className = 'dog-tag ' + dst.level;
+        el.dogPanel.className = 'panel dog-panel' + (
+          dst.level === 'chase' ? ' chase' : dst.level === 'alert' ? ' alert' : '');
+        el.dogText.textContent = dst.label + (
+          game.dog ? ' · a ' + Math.round(game.dog.distanceToRobot) + ' px' : '');
+        if (el.techDog) el.techDog.textContent = game.dog ? game.dog.state : '—';
+      }
+
       const needsRepair = hpPct < 100 || capPct < 100;
       el.workshopRow.classList.toggle('active', game.health.repairing);
       el.workshopRow.classList.toggle('needed', needsRepair && !game.workshop.inZone);
@@ -193,17 +211,31 @@
         k.classList.toggle('pressed', !!active);
       });
 
-      // Lista de mensajes
-      const sig = game.messages.map(function (m) { return m.text + m.life.toFixed(1); }).join('|');
-      if (sig !== msgSignature) {
-        msgSignature = sig;
-        el.messages.innerHTML = '';
-        game.messages.forEach(function (m) {
-          const div = doc.createElement('div');
-          div.className = 'msg ' + m.tone;
-          div.textContent = m.text;
-          el.messages.appendChild(div);
-        });
+      // Lista de mensajes: se crean una sola vez (por id) y sólo se eliminan al
+      // caducar, para que la animación de entrada no se reinicie cada frame.
+      const alive = {};
+      game.messages.forEach(function (m) {
+        alive[m.id] = true;
+        let node = msgNodes[m.id];
+        if (!node) {
+          node = doc.createElement('div');
+          node.className = 'msg ' + m.tone + (m.tone === 'danger' ? ' msg-big' : '');
+          node.textContent = m.text;
+          msgNodes[m.id] = node;
+          el.messages.appendChild(node);
+        }
+        node.style.setProperty('--msg-life', m.maxLife + 's');
+        node.style.opacity = Math.max(0, Math.min(1, m.life / 0.45));
+      });
+      Object.keys(msgNodes).forEach(function (id) {
+        if (!alive[id]) {
+          const node = msgNodes[id];
+          if (node && node.parentNode) node.parentNode.removeChild(node);
+          delete msgNodes[id];
+        }
+      });
+      while (el.messages.children.length > 3) {
+        el.messages.removeChild(el.messages.firstChild);
       }
 
       // Pausa
@@ -225,6 +257,9 @@
         el.banner.className = 'banner show danger';
       } else if (game.stability.charge >= 1 && game.state === 'dropped') {
         el.banner.textContent = '¡El gatito se soltó! Regresa al árbol';
+        el.banner.className = 'banner show danger';
+      } else if (game.dog && (game.dog.state === 'chase' || game.dog.state === 'bite')) {
+        el.banner.textContent = '🐕 ¡El perro te persigue! Corre y escóndete';
         el.banner.className = 'banner show danger';
       } else if (game.health.value <= 25) {
         el.banner.textContent = '¡Robot dañado! Llévalo al TALLER';
@@ -254,6 +289,7 @@
             '<div class="stat"><span>Obstáculos evitados</span><strong>' + game.stats.obstaclesAvoided + '</strong></div>' +
             '<div class="stat"><span>Choques</span><strong>' + game.stats.collisions + '</strong></div>' +
             '<div class="stat"><span>Reparaciones en taller</span><strong>' + game.workshop.repairs + '</strong></div>' +
+            '<div class="stat"><span>Mordiscos del perro</span><strong>' + (game.stats.dogBites || 0) + '</strong></div>' +
             '<div class="stat"><span>Estabilidad final</span><strong>' + Math.round(game.stability.maxCap * 100) + ' %</strong></div>' +
             '<div class="stat"><span>Veces que se cayó el gatito</span><strong>' + game.stats.drops + '</strong></div>';
           el.overlayActions.innerHTML = '';

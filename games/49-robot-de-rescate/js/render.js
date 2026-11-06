@@ -78,6 +78,17 @@
             { speed: 180, life: 1.4, size: 4 });
         } else if (e.type === 'sensor-alert') {
           camera.shake = Math.max(camera.shake, 4);
+        } else if (e.type === 'dog-bark') {
+          floaters.push({ x: game.dog.x - 46, y: game.dog.y - 84, text: '¡GUAU!',
+            color: '#ffcd50', life: 1.2, max: 1.2 });
+          spawnBurst(particles, game.dog.x, game.dog.y - 20, '#ffd9a0', 8,
+            { speed: 90, life: 0.6, size: 3 });
+        } else if (e.type === 'dog-bite') {
+          spawnBurst(particles, game.robot.x, game.robot.y, '#ff5a5a', 26,
+            { speed: 200, life: 0.7, size: 4.5 });
+          floaters.push({ x: game.robot.x + 66, y: game.robot.y - 74, text: '¡MORDISCO!',
+            color: '#ff7b7b', life: 1.6, max: 1.6 });
+          camera.shake = 14;
         } else if (e.type === 'repaired') {
           spawnBurst(particles, game.robot.x, game.robot.y, '#8ef7b6', 34,
             { speed: 160, life: 1.1, size: 4.5, gravity: -40 });
@@ -120,8 +131,26 @@
         }
       }
 
+      // --- perro guardián: campo de detección debajo, cuerpo encima ---
+      const dog = game.dog;
+      if (dog) {
+        S.drawDogSenses(ctx, dog, RDR.CONFIG.DOG, elapsed);
+      }
+
       // --- robot ---
       S.drawRobot(ctx, game.robot, { time: elapsed, carrying: game.cat.state === 'carried' });
+
+      // --- perro (cuerpo) ---
+      if (dog) {
+        S.drawDog(ctx, dog, RDR.CONFIG.DOG, elapsed);
+        const st = game.dogStatusText();
+        if (st.level === 'chase' || st.level === 'alert') {
+          const side = Math.cos(elapsed * 0.7) > 0 ? 1 : -1;
+          S.drawWorldLabel(ctx, dog.x + side * 92, dog.y - 46, st.label,
+            st.level === 'chase' ? '#ff6b6b' : '#ffcd50',
+            '800 13px "Trebuchet MS", system-ui, sans-serif');
+        }
+      }
 
       // --- cono del sensor ---
       S.drawSensorCone(ctx, game.robot, game.sensor, RDR.CONFIG.SENSOR);
@@ -210,7 +239,7 @@
       if (game.state !== 'delivered') {
         const label = game.cat.state === 'carried'
           ? (game.stability.warning ? '¡TRANSPORTE INESTABLE!' : 'Transportando')
-          : (game.interactAvailable ? '' : 'Buscando gatito');
+          : (game.interactAvailable || game.time > 9 ? '' : 'Buscando gatito');
         if (label) {
           const color = game.stability.warning ? '#ff8080' : '#d8f3ff';
           S.drawWorldLabel(ctx, game.robot.x, game.robot.y - 108, label, color,

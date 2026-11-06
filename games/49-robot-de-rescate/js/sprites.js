@@ -435,6 +435,264 @@
   }
 
   /* ---------------------------------------------------------
+   * PERRO GUARDIÁN (vista cenital, animado)
+   * ------------------------------------------------------- */
+  function drawDog(ctx, dog, cfg, t) {
+    const st = dog.state;
+    const chasing = st === 'chase' || st === 'alert' || st === 'bite';
+    const walking = st === 'patrol' || st === 'return' || st === 'chase';
+    const speed = st === 'chase' ? 1 : st === 'patrol' || st === 'return' ? 0.55 : 0;
+    const gait = Math.sin(dog.walkPhase * 2.2) * speed;
+
+    ctx.save();
+    ctx.translate(dog.x, dog.y);
+
+    // sombra
+    ctx.globalAlpha = 0.3;
+    ctx.fillStyle = '#0d2b16';
+    ctx.beginPath();
+    ctx.ellipse(5, 8, 30, 17, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    ctx.rotate(dog.angle);
+
+    const body = '#a8763f';       // pelo marrón
+    const bodyDark = '#7c5228';
+    const bodyLight = '#c99459';
+
+    // cola (mueve más cuando persigue)
+    const wag = Math.sin((chasing ? t * 16 : t * 7)) * (chasing ? 0.5 : 0.28);
+    ctx.save();
+    ctx.translate(-30, 0);
+    ctx.rotate(wag);
+    ctx.strokeStyle = body;
+    ctx.lineWidth = 9;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.quadraticCurveTo(-16, -8, -24, -3);
+    ctx.stroke();
+    ctx.strokeStyle = bodyLight;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(-6, -2);
+    ctx.quadraticCurveTo(-18, -8, -24, -3);
+    ctx.stroke();
+    ctx.restore();
+
+    // patas animadas
+    const legSwing = gait * 9;
+    ctx.strokeStyle = bodyDark;
+    ctx.lineWidth = 7;
+    ctx.lineCap = 'round';
+    [[-18, -13], [-18, 13], [16, -13], [16, 13]].forEach(function (leg, i) {
+      const sgn = i % 2 === 0 ? 1 : -1;
+      const off = (i < 2 ? 1 : -1) * legSwing;
+      ctx.beginPath();
+      ctx.moveTo(leg[0], leg[1]);
+      ctx.lineTo(leg[0] + off, leg[1] + sgn * 3);
+      ctx.stroke();
+    });
+
+    // cuerpo
+    const g = ctx.createLinearGradient(-34, -20, 26, 22);
+    g.addColorStop(0, bodyDark);
+    g.addColorStop(0.45, body);
+    g.addColorStop(1, bodyLight);
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.ellipse(-4, 0, 31, 19, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(70, 44, 18, 0.75)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // mancha clara del pecho
+    ctx.fillStyle = 'rgba(240, 226, 200, 0.85)';
+    ctx.beginPath();
+    ctx.ellipse(14, 0, 10, 11, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // arnés rojo
+    ctx.strokeStyle = '#c0392b';
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.moveTo(-2, -18);
+    ctx.lineTo(-2, 18);
+    ctx.stroke();
+
+    // cabeza
+    ctx.save();
+    ctx.translate(28, 0);
+    // hocico
+    ctx.fillStyle = body;
+    ctx.beginPath();
+    ctx.ellipse(11, 0, 12, 9, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(70, 44, 18, 0.6)';
+    ctx.lineWidth = 1.6;
+    ctx.stroke();
+    // trufa negra
+    ctx.fillStyle = '#231a14';
+    ctx.beginPath();
+    ctx.ellipse(21, 0, 5, 4.2, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // orejas (se levantan al perseguir)
+    const earLift = chasing ? -3 : 2;
+    ctx.fillStyle = bodyDark;
+    [-1, 1].forEach(function (side) {
+      ctx.save();
+      ctx.translate(-2, side * 11);
+      ctx.rotate(side * (chasing ? 0.15 : 0.35));
+      ctx.beginPath();
+      ctx.ellipse(-4, side * 3 + earLift * 0.4, 10, 7, side * 0.4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    });
+    // ojos
+    ctx.fillStyle = '#231a14';
+    [-6.5, 6.5].forEach(function (side) {
+      ctx.beginPath();
+      ctx.ellipse(3, side, 3.1, 3.1, 0, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    // brillo agresivo cuando persigue
+    if (chasing) {
+      ctx.fillStyle = '#ff5a4d';
+      [-6.5, 6.5].forEach(function (side) {
+        ctx.beginPath();
+        ctx.arc(3.5, side, 1.2, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
+    // collar
+    ctx.strokeStyle = '#c0392b';
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.arc(0, 0, 14, -1.1, 1.1);
+    ctx.stroke();
+    // lengua cuando corre
+    if (chasing) {
+      ctx.fillStyle = '#f07b8a';
+      ctx.beginPath();
+      ctx.ellipse(17, 3.5, 4.5, 3, 0.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+
+    ctx.restore();
+  }
+
+  /* ---------------------------------------------------------
+   * CASETA DEL PERRO
+   * ------------------------------------------------------- */
+  function drawDogHouse(ctx, b, t) {
+    const x = b.x, y = b.y, w = b.w, h = b.h;
+    shadowEllipse(ctx, x + w / 2 + 8, y + h / 2 + 10, w * 0.56, h * 0.6, 0.3);
+    // tejado a dos aguas
+    ctx.fillStyle = '#b5462f';
+    roundRect(ctx, x - 8, y - 10, w + 16, h * 0.62, 8);
+    ctx.fill();
+    ctx.strokeStyle = '#7d2a19';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(255, 210, 190, 0.28)';
+    ctx.lineWidth = 2;
+    for (let i = 1; i < 6; i++) {
+      ctx.beginPath();
+      ctx.moveTo(x - 4, y - 10 + (h * 0.62 / 6) * i);
+      ctx.lineTo(x + w + 4, y - 10 + (h * 0.62 / 6) * i);
+      ctx.stroke();
+    }
+    // madera frontal con la entrada
+    ctx.fillStyle = '#a8763f';
+    roundRect(ctx, x, y + h * 0.42, w, h * 0.58, 6);
+    ctx.fill();
+    ctx.strokeStyle = '#6f4a22';
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+    ctx.fillStyle = '#2a1c12';
+    ctx.beginPath();
+    ctx.moveTo(x + w * 0.5 - 20, y + h);
+    ctx.lineTo(x + w * 0.5 - 20, y + h * 0.62);
+    ctx.arc(x + w * 0.5, y + h * 0.62, 20, Math.PI, 0);
+    ctx.lineTo(x + w * 0.5 + 20, y + h);
+    ctx.closePath();
+    ctx.fill();
+    // placa "GUAU"
+    ctx.fillStyle = 'rgba(20, 26, 32, 0.85)';
+    roundRect(ctx, x + w * 0.5 - 26, y + h * 0.46, 52, 18, 5);
+    ctx.fill();
+    ctx.fillStyle = '#ffe0a0';
+    ctx.font = '800 12px "Trebuchet MS", system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('GUAU', x + w * 0.5, y + h * 0.46 + 10);
+    // cuenco de agua
+    const bx = x - 34, by = y + h * 0.72;
+    ctx.fillStyle = '#4a7fa8';
+    ctx.beginPath();
+    ctx.ellipse(bx, by, 16, 11, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#8fd0ee';
+    ctx.beginPath();
+    ctx.ellipse(bx, by, 11, 7, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  /* ---------------------------------------------------------
+   * CAMPO DE DETECCIÓN DEL PERRO
+   * ------------------------------------------------------- */
+  function drawDogSenses(ctx, dog, cfg, t) {
+    const chasing = dog.state === 'chase' || dog.state === 'bite';
+    const alerted = dog.state === 'alert' || dog.state === 'search';
+    const color = chasing ? 'rgba(255, 70, 70, ' : alerted ? 'rgba(255, 190, 70, ' : 'rgba(255, 150, 90, ';
+
+    ctx.save();
+    ctx.translate(dog.x, dog.y);
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.arc(0, 0, cfg.detectRangePx, dog.angle - cfg.detectHalfAngle,
+      dog.angle + cfg.detectHalfAngle);
+    ctx.closePath();
+    const grd = ctx.createRadialGradient(0, 0, 30, 0, 0, cfg.detectRangePx);
+    grd.addColorStop(0, color + (chasing ? 0.30 : 0.16) + ')');
+    grd.addColorStop(1, color + '0)');
+    ctx.fillStyle = grd;
+    ctx.fill();
+    ctx.restore();
+
+    // ondas de ladrido/localización
+    if (chasing || alerted) {
+      ctx.save();
+      ctx.globalAlpha = 0.5 + 0.4 * Math.sin(t * 10);
+      ctx.strokeStyle = chasing ? '#ff6b6b' : '#ffcd50';
+      ctx.lineWidth = 2.5;
+      for (let i = 0; i < 2; i++) {
+        const r = 40 + i * 22 + (t * 40 % 22);
+        ctx.beginPath();
+        ctx.arc(dog.x, dog.y, r, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // exclamación sobre el perro
+      ctx.save();
+      ctx.translate(dog.x, dog.y - 52 - Math.sin(t * 8) * 3);
+      ctx.fillStyle = chasing ? '#ff5a5a' : '#ffcd50';
+      ctx.font = '900 26px "Trebuchet MS", system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.strokeStyle = 'rgba(10, 16, 20, 0.85)';
+      ctx.lineWidth = 5;
+      ctx.strokeText('!', 0, 0);
+      ctx.fillText('!', 0, 0);
+      ctx.restore();
+    }
+  }
+
+  /* ---------------------------------------------------------
    * TALLER DE REPARACIÓN (vista cenital)
    * ------------------------------------------------------- */
   function drawWorkshop(ctx, b, zone, t, state) {
@@ -1073,6 +1331,7 @@
   RDR.sprites = {
     drawCat, drawTree, drawRock, drawBench, drawCrate, drawPlanter, drawBush,
     drawBarrier, drawVet, drawDeliveryZone, drawRobot, drawSensorCone, drawWorkshop, drawWell,
+    drawDog, drawDogHouse, drawDogSenses,
     drawWorldLabel, roundRect, shadowEllipse,
     CAT_GRID, CAT_PALETTE,
   };

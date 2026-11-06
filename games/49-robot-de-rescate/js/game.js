@@ -92,9 +92,50 @@
       messages: [],
       events: [],                 // eventos para efectos visuales/sonido
       input: { forward: false, back: false, left: false, right: false, brake: false },
+      dog: null,
       interactAvailable: false,
       nearTreeCat: false,
       lastSensorLevel: 'clear',
+    };
+
+    /* ---------------- Perro guardián ---------------- */
+    if (RDR.createDog) {
+      game.dog = RDR.createDog(CFG.DOG, LEVEL);
+    }
+
+    /** El perro ha mordido al robot. */
+    game.onDogBite = function () {
+      const H = CFG.HEALTH;
+      game.stats.dogBites = (game.stats.dogBites || 0) + 1;
+      game.health.value = Math.max(0, game.health.value - H.collisionPenalty * 0.7);
+      game.stability.maxCap = Math.max(H.floorAfterHits / 100,
+        game.stability.maxCap - (H.collisionPenalty / 100) * 0.5);
+
+      if (game.cat.state === 'carried') {
+        // El susto hace que el gatito se tambalee mucho
+        game.stability.charge = Math.min(1, game.stability.charge + 0.42);
+        if (game.stability.charge >= 1) {
+          game.startCatFall('dog');
+        } else {
+          game.say('🐕 ¡El perro te muerde! El gatito se asusta', 'danger', 4.5);
+        }
+      } else {
+        game.say('🐕 ¡El perro te ha mordido! −' +
+          Math.round(H.collisionPenalty * 0.7) + ' % de salud', 'danger', 4.5);
+      }
+      if (game.health.value <= 0) {
+        game.say('💥 Robot destruido por el perro · ve al TALLER', 'danger', 5);
+      }
+      game.emit('dog-hit', { x: game.robot.x, y: game.robot.y });
+    };
+
+    /** ¿Hay algún peligro que impida reparar en el taller? */
+    game.workshopBlockedByDog = function () {
+      const d = game.dog;
+      if (!d) return false;
+      if (!d.isChasing()) return false;
+      const W = LEVEL.workshop;
+      return Math.hypot(d.x - W.x, d.y - W.y) < 260;
     };
 
     /* ---------------- Mensajes / eventos ---------------- */
@@ -103,12 +144,25 @@
       game.events.push({ type, payload: payload || {}, t: game.time });
     };
 
+    let msgId = 0;
     game.say = function (text, tone, duration) {
-      game.messages.push({
-        text, tone: tone || 'info',
+      // Si el mismo aviso ya está en pantalla, se refresca en lugar de duplicarse
+      for (let i = 0; i < game.messages.length; i++) {
+        const m = game.messages[i];
+        if (m.text === text) {
+          m.life = duration || 2.6;
+          m.maxLife = m.life;
+          return m;
+        }
+      }
+      const msg = {
+        id: ++msgId,
+        text: text, tone: tone || 'info',
         life: duration || 2.6, maxLife: duration || 2.6,
-      });
-      if (game.messages.length > 4) game.messages.shift();
+      };
+      game.messages.push(msg);
+      if (game.messages.length > 3) game.messages.shift();
+      return msg;
     };
 
     /* ---------------- Entrada ---------------- */
@@ -209,15 +263,18 @@
      *  - reduce el techo de estabilidad (máx. 100 %, y tras más de 3 choques ~30 %),
      *  - si el robot lleva al gatito, el golpe también lo desestabiliza.
      */
-    game.registerCollision = function (obstacle) {
+    game.registerCollision = function (obstacle, impactSpeed) {
       const H = CFG.HEALTH;
       game.stats.collisions++;
-      game.health.value = Math.max(0, game.health.value - H.collisionPenalty);
+      // El daño depende del golpe: un roce cuesta menos que un impacto a tope
+      const ratio = P.clamp((impactSpeed || CFG.ROBOT.speedNormal) / CFG.ROBOT.speedNormal, 0.35, 1.3);
+      const damage = H.collisionPenalty * ratio;
+      game.health.value = Math.max(0, game.health.value - damage);
 
       // Techo de estabilidad: baja con cada choque hasta un mínimo del 30 %.
       const floor = H.floorAfterHits / 100;
       const before = game.stability.maxCap;
-      const drop = H.collisionPenalty / 100 * (before > 0.6 ? 1 : 0.45);
+      const drop = (H.collisionPenalty / 100) * ratio * (before > 0.6 ? 1 : 0.45);
       game.stability.maxCap = Math.max(floor, before - drop);
 
       if (game.cat.state === 'carried') {
@@ -232,14 +289,16 @@
         health: game.health.value, maxCap: game.stability.maxCap,
       });
 
+      const hp = Math.round(game.health.value);
+      const cap = Math.round(game.stability.maxCap * 100);
       if (game.health.value <= 0) {
-        game.say('¡Robot dañado! Ve al TALLER a repararlo', 'danger', 3.6);
+        game.say('💥 ¡Robot destruido! Salud 0 % · ve al TALLER', 'danger', 5);
       } else if (game.stats.collisions >= H.floorAfterHits + 1) {
-        game.say('¡Choque! Estabilidad máx. ' + Math.round(game.stability.maxCap * 100) +
-          ' % · Repara en el TALLER', 'danger', 3.2);
+        game.say('💥 ¡Choque! Salud ' + hp + ' % · estabilidad máx. ' + cap +
+          ' % · ¡repara en el TALLER!', 'danger', 5);
       } else {
-        game.say('¡Choque! Estabilidad máx. ' + Math.round(game.stability.maxCap * 100) + ' %',
-          'danger', 2.2);
+        game.say('💥 ¡Choque! Salud ' + hp + ' % · estabilidad máx. ' + cap + ' %',
+          'danger', 4.5);
       }
 
       // La entrega se cancela si el golpe tira al gatito
@@ -259,7 +318,9 @@
       const needsRepair = game.health.value < CFG.HEALTH.max - 0.01 ||
         game.stability.maxCap < 0.999;
 
-      if (inZone && needsRepair) {
+      const blocked = game.workshopBlockedByDog && game.workshopBlockedByDog();
+      game.workshop.blocked = !!blocked;
+      if (inZone && needsRepair && !blocked) {
         game.health.repairing = true;
         const rate = CFG.HEALTH.repairPerSecond * (CFG.HEALTH.repairCostFactor || 1);
         game.health.value = Math.min(CFG.HEALTH.max, game.health.value + rate * dt);
@@ -279,6 +340,11 @@
         }
       } else {
         game.health.repairing = false;
+        if (blocked && !game._workshopBlockedHint) {
+          game._workshopBlockedHint = true;
+          game.say('¡El perro no te deja reparar! Aléjalo o escóndete', 'danger', 3.6);
+        }
+        if (!blocked) game._workshopBlockedHint = false;
         if (inZone && !needsRepair && !game._workshopHinted) {
           game._workshopHinted = true;
           game.say('Robot en perfecto estado (100 %)', 'ok', 2.2);
@@ -304,6 +370,7 @@
       game.input.left = game.input.right = false;
       game.input.brake = false;
       game._hadNearThreat = false;
+      game._collisionCooldown = 0;
       game.robot.x = LEVEL.robotStart.x;
       game.robot.y = LEVEL.robotStart.y;
       game.robot.angle = LEVEL.robotStart.angle;
@@ -336,8 +403,11 @@
       game.sensor.level = 'clear';
       game.stats = {
         obstaclesAvoided: 0, collisions: 0, nearMisses: 0,
-        fastTimeCarrying: 0, drops: 0, maxSpeed: 0, repairs: 0,
+        fastTimeCarrying: 0, drops: 0, maxSpeed: 0, repairs: 0, dogBites: 0,
       };
+      if (game.dog) game.dog.reset();
+      game._wasBlocked = false;
+      game._workshopBlockedHint = false;
       game.messages.length = 0;
       game.events.length = 0;
       game.lastSensorLevel = 'clear';
@@ -425,13 +495,22 @@
       robot.wheelSpin += (moved / 26) * (robot.speed >= 0 ? 1 : -1);
       robot.blocked = res.blocked;
 
-      if (res.blocked && Math.abs(robot.speed) > 30) {
-        if (robot.impact <= 0.01) {
-          game.registerCollision(res.obstacle);
-        }
+      // Un choque cuenta a CUALQUIER velocidad por encima de un mínimo:
+      // antes sólo se registraba por encima de 30 px/s y los toques suaves
+      // contra un obstáculo no restaban salud.
+      // Sólo se contabiliza el INICIO del contacto: mientras el robot sigue
+      // empujando el mismo obstáculo no se vuelve a restar salud.
+      game._collisionCooldown = Math.max(0, (game._collisionCooldown || 0) - dt);
+      const contactStart = res.blocked && !game._wasBlocked;
+      if (contactStart && Math.abs(robot.speed) > 4 && game._collisionCooldown <= 0) {
+        game.registerCollision(res.obstacle, Math.abs(robot.speed));
+        game._collisionCooldown = CFG.HEALTH.collisionCooldown;
         robot.impact = CFG.ROBOT.impactRecover * 2;
         robot.speed *= 0.12;                  // el robot queda bloqueado
+      } else if (res.blocked) {
+        robot.speed *= 0.35;
       }
+      game._wasBlocked = res.blocked;
       if (robot.impact > 0) robot.impact = Math.max(0, robot.impact - dt);
 
       // Estado del motor (para el panel técnico)
@@ -544,7 +623,17 @@
         }
       }
 
-      /* --- 6b. Taller de reparación --- */
+      /* --- 6b. Perro guardián --- */
+      if (game.dog) {
+        game.dog.update(dt, robot, game);
+        // El perro no puede entrar en la zona del taller: es lugar seguro
+        if (game.dog.isChasing() && game.workshop.inZone) {
+          game.dog.state = 'return';
+          game.dog.cooldown = 1.2;
+        }
+      }
+
+      /* --- 6c. Taller de reparación --- */
       game.updateWorkshop(dt);
 
       /* --- 7. Estadísticas de obstáculos evitados --- */
@@ -552,6 +641,7 @@
       if (game.sensor.level === 'clear' && game._hadNearThreat) {
         game.stats.obstaclesAvoided++;
         game._hadNearThreat = false;
+      game._collisionCooldown = 0;
       }
       if (game.sensor.level !== 'clear') game._hadNearThreat = true;
 
@@ -589,6 +679,16 @@
         default:
           return '';
       }
+    };
+
+    game.dogStatusText = function () {
+      const d = game.dog;
+      if (!d) return { label: 'Sin perro', level: 'safe' };
+      const lvl = d.dangerLevel();
+      if (lvl === 'chase') return { label: '¡Te está persiguiendo!', level: 'chase' };
+      if (lvl === 'alert') return { label: 'Te ha detectado', level: 'alert' };
+      if (lvl === 'near') return { label: 'Cerca de ti', level: 'near' };
+      return { label: 'Tranquilo', level: 'safe' };
     };
 
     game.catStatusText = function () {

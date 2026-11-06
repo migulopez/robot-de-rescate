@@ -113,6 +113,14 @@
           </div>
         </div>
 
+        <div class="panel dog-panel" id="dog-panel">
+          <div class="panel-head">
+            <span class="panel-label">Perro guardián</span>
+            <span class="dog-tag safe" id="dog-tag">TRANQUILO</span>
+          </div>
+          <div class="sub" id="dog-text">Patrulla junto a su caseta</div>
+        </div>
+
         <div class="panel cat-panel">
           <div class="panel-label">Estado del gatito</div>
           <div class="cat-status" id="cat-status">Pendiente de rescate</div>
@@ -137,6 +145,7 @@
             <div><dt>Salud del robot</dt><dd id="tech-health">100 %</dd></div>
             <div><dt>Estabilidad máx.</dt><dd id="tech-cap">100 %</dd></div>
             <div><dt>Taller</dt><dd id="tech-workshop">fuera</dd></div>
+            <div><dt>Perro</dt><dd id="tech-dog">patrulla</dd></div>
             <div><dt>Choques</dt><dd id="tech-collisions">0</dd></div>
             <div><dt>Obstáculos evitados</dt><dd id="tech-avoided">0</dd></div>
           </dl>
@@ -218,6 +227,13 @@
            del transporte: con 3 choques o más sólo podrás alcanzar el 30 %.
            Ve al <strong>TALLER</strong> (junto a la ruta, a mitad de camino) y espera unos
            segundos dentro de la zona amarilla para volver al 100 %.</p>
+        <h3>El perro guardián 🐕</h3>
+        <p>Hay un perro junto a su caseta, a mitad del recorrido. <strong>Detecta al robot</strong>
+           si entras en su cono de visión o te acercas demasiado (y te oye antes si corres).
+           Si te detecta, <strong>te persigue</strong>, ladra y te muerde: pierdes salud y, si
+           llevas al gatito, se asusta y puede caerse.</p>
+        <p>Es más lento que tu robot en modo rápido: <strong>huye y rompe la línea de visión</strong>
+           detrás de árboles y edificios. Si te alejas, te pierde y vuelve a su caseta.</p>
         <h3>Modelo real</h3>
         <p class="tiny">El robot del juego está inspirado en el prototipo físico del repositorio
            (chasis impreso en 3D, ruedas con aros rojos, plataforma metálica y HC-SR04 frontal).
@@ -248,6 +264,7 @@
 <script src="js/config.js"></script>
 <script src="js/level.js"></script>
 <script src="js/physics.js"></script>
+<script src="js/dog.js"></script>
 <script src="js/game.js"></script>
 <script src="js/sprites.js"></script>
 <script src="js/world.js"></script>
