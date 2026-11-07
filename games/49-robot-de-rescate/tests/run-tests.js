@@ -694,6 +694,34 @@ test('Los assets llevan versión para evitar caché del navegador', function () 
   });
 });
 
+test('Hay una ventana de bienvenida con la misión y los peligros', function () {
+  const fs2 = require('fs');
+  const path2 = require('path');
+  const html = fs2.readFileSync(path2.join(__dirname, '..', 'index.html'), 'utf8');
+  const block = html.split('id="intro-screen"')[1].split('<!-- ====== OVERLAY')[0];
+  assert(block, 'no existe la ventana #intro-screen');
+  assert(/overlay intro show/.test(html), 'la ventana no empieza visible');
+  assert(/id="btn-start"/.test(block), 'falta el botón de empezar');
+  ['misión', 'peligros', 'vida', 'estabilidad', 'taller', 'veterinaria'].forEach(function (k) {
+    assert(block.toLowerCase().indexOf(k) !== -1, 'la ventana no explica «' + k + '»');
+  });
+  assert(/−30\s*%|−30 %/.test(block), 'la ventana no indica el −30 % de los choques');
+});
+
+test('La ventana de inicio pausa el juego y se cierra con Enter', function () {
+  const fs2 = require('fs');
+  const path2 = require('path');
+  const ui = fs2.readFileSync(path2.join(__dirname, '..', 'js', 'ui.js'), 'utf8');
+  assert(/showIntro\(\)/.test(ui), 'ui.js no abre la ventana de inicio');
+  assert(/function hideIntro/.test(ui), 'ui.js no cierra la ventana');
+  assert(/game.paused = true/.test(ui), 'la ventana no pausa la simulación');
+  assert(/if \(introOpen\)/.test(ui), 'las teclas no respetan la ventana abierta');
+  // el bucle descarta el acumulador en pausa (el cronómetro no avanza)
+  const main = fs2.readFileSync(path2.join(__dirname, '..', 'js', 'main.js'), 'utf8');
+  assert(/if \(game.paused\) accumulator = 0;/.test(main),
+    'el bucle principal acumula tiempo mientras está en pausa');
+});
+
 test('El HUD no puede solaparse con los controles (banda reservada)', function () {
   const fs2 = require('fs');
   const path2 = require('path');

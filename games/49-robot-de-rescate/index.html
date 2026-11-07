@@ -8,7 +8,7 @@
 <meta http-equiv="Expires" content="0" />
 <title>49. Robot de rescate simulado</title>
 <meta name="description" content="Videojuego educativo: controla un robot móvil con sensor ultrasónico, rescata a un gatito y llévalo a la veterinaria." />
-<link rel="stylesheet" href="css/game.css?v=2026-11-06-6" />
+<link rel="stylesheet" href="css/game.css?v=2026-11-06-7" />
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>" />
 </head>
 <body>
@@ -191,6 +191,81 @@
         </div>
       </div>
 
+
+      <!-- ====== VENTANA DE BIENVENIDA (misión y reglas) ====== -->
+      <div class="overlay intro show" id="intro-screen" role="dialog" aria-modal="true"
+           aria-labelledby="intro-title">
+        <div class="overlay-card intro-card">
+          <div class="intro-badge">Actividad 49 · Misión de rescate</div>
+          <h2 id="intro-title">Rescata al gatito</h2>
+          <p class="intro-lead">
+            Lleva el robot hasta el <strong>gatito</strong> que está junto al árbol, recógelo
+            y entrégalo en la <strong>veterinaria</strong>. Por el camino hay un
+            <strong>perro guardián</strong>… y cada golpe cuenta.
+          </p>
+
+          <div class="intro-grid">
+            <div class="intro-item mission">
+              <div class="intro-ico">🎯</div>
+              <div>
+                <h4>La misión</h4>
+                <p>Árbol → gatito <kbd>E</kbd> → <strong>VETERINARIA</strong>.
+                   Si llegas sin el gatito, la misión no cuenta.</p>
+              </div>
+            </div>
+
+            <div class="intro-item danger">
+              <div class="intro-ico">🐕</div>
+              <div>
+                <h4>Los peligros</h4>
+                <p>El <strong>perro</strong> te detecta si te acercas y te persigue: ladra y
+                   muerde. También hay árboles, rocas, bancas, cajas y barreras.</p>
+              </div>
+            </div>
+
+            <div class="intro-item life">
+              <div class="intro-ico">❤️</div>
+              <div>
+                <h4>La vida</h4>
+                <p>Empiezas al <strong>100 %</strong>. Cada choque quita
+                   <strong>−30 %</strong>: 1 choque → 70 %, 2 → 40 %. En el
+                   <strong>taller 🔧</strong> recuperas el 100 %.</p>
+                <div class="intro-bar"><span class="fill ok" style="width:100%"></span></div>
+                <div class="intro-bar"><span class="fill warn" style="width:70%"></span></div>
+                <div class="intro-bar"><span class="fill bad" style="width:40%"></span></div>
+              </div>
+            </div>
+
+            <div class="intro-item stability">
+              <div class="intro-ico">⚖️</div>
+              <div>
+                <h4>La estabilidad</h4>
+                <p>Con el gatito a bordo, la barra sube si corres: al llenarse, el gatito
+                   <strong>salta y se escapa</strong>. Cada choque además baja tu
+                   estabilidad máxima un <strong>−30 %</strong>.</p>
+                <div class="intro-bar"><span class="fill ok" style="width:100%"></span></div>
+                <div class="intro-bar"><span class="fill warn" style="width:70%"></span></div>
+                <div class="intro-bar"><span class="fill bad" style="width:40%"></span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="intro-keys">
+            <span><kbd>W</kbd><kbd>S</kbd> avanzar / retroceder</span>
+            <span><kbd>A</kbd><kbd>D</kbd> girar</span>
+            <span><kbd>ESPACIO</kbd> frenar</span>
+            <span><kbd>E</kbd> recoger / soltar</span>
+            <span><kbd>SHIFT</kbd> velocidad</span>
+            <span><kbd>P</kbd> pausa · <kbd>H</kbd> ayuda · <kbd>M</kbd> sonido</span>
+          </div>
+
+          <div class="overlay-actions intro-actions">
+            <button class="btn primary big-start" id="btn-start">▶ ¡Empezar la misión!</button>
+          </div>
+          <p class="intro-foot">Pulsa <kbd>ENTER</kbd> o haz clic para empezar</p>
+        </div>
+      </div>
+
       <!-- ====== OVERLAY ====== -->
       <div class="overlay" id="overlay">
         <div class="overlay-card">
@@ -263,20 +338,20 @@
     <span class="sep">•</span>
     <span>Vista cenital (top-down)</span>
     <span class="sep">•</span>
-    <span class="build" id="build-tag">v6 · sonido 8 bits 🔊 · HUD sin solapes</span>
+    <span class="build" id="build-tag">v7 · ventana de misión 🎯 · sonido 🔊</span>
   </footer>
 </div>
 
-<script src="js/config.js?v=2026-11-06-6"></script>
-<script src="js/level.js?v=2026-11-06-6"></script>
-<script src="js/physics.js?v=2026-11-06-6"></script>
-<script src="js/dog.js?v=2026-11-06-6"></script>
-<script src="js/game.js?v=2026-11-06-6"></script>
-<script src="js/sprites.js?v=2026-11-06-6"></script>
-<script src="js/world.js?v=2026-11-06-6"></script>
-<script src="js/render.js?v=2026-11-06-6"></script>
-<script src="js/audio.js?v=2026-11-06-6"></script>
-<script src="js/ui.js?v=2026-11-06-6"></script>
-<script src="js/main.js?v=2026-11-06-6"></script>
+<script src="js/config.js?v=2026-11-06-7"></script>
+<script src="js/level.js?v=2026-11-06-7"></script>
+<script src="js/physics.js?v=2026-11-06-7"></script>
+<script src="js/dog.js?v=2026-11-06-7"></script>
+<script src="js/game.js?v=2026-11-06-7"></script>
+<script src="js/sprites.js?v=2026-11-06-7"></script>
+<script src="js/world.js?v=2026-11-06-7"></script>
+<script src="js/render.js?v=2026-11-06-7"></script>
+<script src="js/audio.js?v=2026-11-06-7"></script>
+<script src="js/ui.js?v=2026-11-06-7"></script>
+<script src="js/main.js?v=2026-11-06-7"></script>
 </body>
 </html>
