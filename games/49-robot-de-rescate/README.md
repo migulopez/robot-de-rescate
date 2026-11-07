@@ -42,7 +42,8 @@ móviles y tablets.
 
 1. Conduce hasta el **árbol** (zona indicada con una circunferencia punteada).
 2. Al acercarte al gatito aparece el aviso **«Presiona E para rescatar al gatito»**.
-3. Pulsa **E**: el gatito sube a la plataforma de transporte del robot.
+3. Pulsa **E**: el gatito sube a la plataforma de transporte del robot. Si llegas y no
+   pulsas E, a los 0,9 s **el gatito salta solo** al robot (nunca se queda ahí sin subir).
 4. Ve hacia la **VETERINARIA** evitando árboles, rocas, bancas, cajas, macetas y barreras.
 5. Entra en la **zona de entrega**. Si llevas al gatito, la misión se completa.
 
@@ -95,10 +96,12 @@ Si llegas a la veterinaria **sin** el gatito, la misión **no** se completa.
 - Al 35 % aparece la advertencia **«¡Cuidado! Estás transportando al gatito demasiado
   rápido»** y el gatito empieza a **tambalearse** sobre el robot.
 - Al 72 % el aviso pasa a **crítico** (parpadeo rojo).
-- Al 100 % (**≈ 2,5 s** de velocidad rápida continua por defecto) **el gatito se cae**:
-  - cae al suelo con animación,
-  - el jugador pierde el progreso del rescate,
-  - el gatito **regresa automáticamente** a su posición junto al árbol,
+- Al llenarse la barra (**≈ 2,5 s** de velocidad rápida continua por defecto, o menos si
+  el techo de estabilidad está reducido por choques) **el gatito se cae**:
+  - **salta en el aire** (hasta ~46 px de altura, con sombra que se separa),
+  - aterriza y **sale corriendo ~380 px** lejos del robot, con polvo y zancada,
+  - luego **vuelve corriendo** al árbol (se le ve recorrer el camino, nada de aparecer
+    de golpe) y recupera el estado de espera,
   - el robot vuelve al estado de búsqueda para reintentar.
 - Si **bajas la velocidad**, el indicador desciende y el transporte continúa.
 
@@ -123,9 +126,9 @@ o editando `CONFIG.STABILITY.toleranceSeconds` en `js/config.js`.
   que se den.
 - Empujar el mismo obstáculo no resta salud en cada fotograma: sólo cuenta el **inicio**
   del contacto (con un pequeño enfriamiento).
-- La barra de estabilidad muestra un **tope blanco** con el porcentaje máximo actual:
-  aunque vayas despacio, la inestabilidad nunca supera ese techo, así que con el robot
-  dañado es mucho más fácil que el gatito se caiga.
+- La barra de estabilidad muestra un **tope blanco** con el porcentaje máximo actual.
+  La caída se dispara cuando la barra **llega a ese techo**, así que con el robot dañado
+  el gatito se cae muchísimo antes (y **siempre** se cae: el techo ya no bloquea la caída).
 - Un choque mientras transportas al gatito también lo **desestabiliza** en el acto.
 - El **TALLER** (a un tercio del recorrido, ~770 px del inicio) tiene una zona amarilla: entra en
   ella y el robot se repara automáticamente subiendo salud y estabilidad máxima hasta
@@ -226,7 +229,7 @@ games/49-robot-de-rescate/
 │   ├── robot-real.jpg      # Fotografía del prototipo real
 │   └── gatito-referencia.png
 ├── tests/
-│   └── run-tests.js        # 53 pruebas automáticas de las mecánicas
+│   └── run-tests.js        # 56 pruebas automáticas de las mecánicas
 └── README.md
 ```
 
@@ -257,7 +260,7 @@ caída por exceso de velocidad, recuperación del indicador, retorno del gatito 
 árbol, tolerancia configurable, condición de victoria, choques/taller y
 alcanzabilidad del escenario.
 
-Resultado actual: **53 pruebas superadas, 0 fallidas**.
+Resultado actual: **56 pruebas superadas, 0 fallidas**.
 
 Incluyen, además de lo anterior: penalización de salud y de estabilidad máxima por
 choque, daño en roces suaves, que empujar no reste salud por frame, mínimo del 30 % tras

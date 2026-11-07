@@ -57,6 +57,10 @@
          * La estabilidad sólo puede subir hasta este valor.
          */
         maxCap: 1,
+        /** ¿La barra llegó al techo? Entonces el gatito se cae. */
+        isFull: function () {
+          return this.charge >= this.maxCap - 0.0005;
+        },
       },
       /** Salud / integridad del robot (0-100). Se recupera en el taller. */
       health: {
@@ -198,6 +202,8 @@
       game.cat.onRobot = true;
       game.state = STATE.CARRYING;
       game.stability.charge = 0;
+      game._carryGrace = 0.35;
+      game._catNearTime = 0;
       game.stability.warning = false;
       game.stability.critical = false;
       game.emit('cat-pickup', {});
@@ -216,18 +222,33 @@
       game.stability.charge = 1;
       game.emit('cat-fall', { reason });
       game.say('¡El gatito se cayó! Vuelve junto al árbol', 'danger', 3.4);
-      // Encuentra un punto libre cerca del robot para dejarlo en el suelo
-      let spot = { x: game.robot.x, y: game.robot.y };
-      for (let i = 0; i < 24; i++) {
-        const a = (i / 24) * Math.PI * 2;
-        const d = 46 + i * 1.5;
-        const cx = game.robot.x + Math.cos(a) * d;
-        const cy = game.robot.y + Math.sin(a) * d;
-        if (cx > 40 && cy > 40 && cx < LEVEL.width - 40 && cy < LEVEL.height - 40 &&
-            !P.collidesAny(cx, cy, 26, LEVEL.obstacles)) { spot = { x: cx, y: cy }; break; }
+      // Encuentra una ruta de huida: el gatito salta y CORRE lejos del robot
+      // Huye hacia atrás/diagonal respecto al sentido de marcha del robot
+      const ang = game.robot.angle + Math.PI + (Math.random() - 0.5) * 1.1;
+      const C = CFG.CAT;
+      const dist = C.fleeDistancePx || 380;
+      let land = null;
+      for (let k = 0; k < 3 && !land; k++) {
+        const a = ang + k * (Math.PI * 2 / 3);
+        for (let d = dist; d >= 90; d -= 24) {
+          const cx = game.robot.x + Math.cos(a) * d;
+          const cy = game.robot.y + Math.sin(a) * d;
+          if (cx > 60 && cy > 60 && cx < LEVEL.width - 60 && cy < LEVEL.height - 60 &&
+              !P.collidesAny(cx, cy, 34, LEVEL.obstacles)) {
+            land = { x: cx, y: cy, dist: d };
+            break;
+          }
+        }
       }
-      game.cat.landX = spot.x;
-      game.cat.landY = spot.y;
+      if (!land) land = { x: game.robot.x - Math.cos(game.robot.angle) * 120,
+        y: game.robot.y - Math.sin(game.robot.angle) * 120, dist: 120 };
+      game.cat.fleeFromX = game.robot.x;
+      game.cat.fleeFromY = game.robot.y;
+      game.cat.landX = land.x;
+      game.cat.landY = land.y;
+      game.cat.fleeDistance = land.dist;
+      game.cat.fleeSpeed = C.fleeSpeed || 300;
+      game.cat.hopHeight = C.hopHeightPx || 46;
     };
 
     game.dropCatManually = function () {
@@ -284,6 +305,11 @@
       }
       game.stability.charge = Math.min(game.stability.charge, game.stability.maxCap);
 
+      // Si el golpe llena la barra hasta el techo actual, el gatito sale volando.
+      if (game.cat.state === 'carried' && game.stability.isFull()) {
+        game.startCatFall('crash');
+      }
+
       game.emit('impact', {
         x: game.robot.x, y: game.robot.y, obstacle: obstacle,
         health: game.health.value, maxCap: game.stability.maxCap,
@@ -299,11 +325,6 @@
       } else {
         game.say('💥 ¡Choque! Salud ' + hp + ' % · estabilidad máx. ' + cap + ' %',
           'danger', 4.5);
-      }
-
-      // La entrega se cancela si el golpe tira al gatito
-      if (game.stability.charge >= 1 && game.cat.state === 'carried') {
-        game.startCatFall('crash');
       }
     };
 
@@ -452,6 +473,7 @@
         return;
       }
       game.time += dt;
+      if (game._carryGrace > 0) game._carryGrace = Math.max(0, game._carryGrace - dt);
       const robot = game.robot;
       const C = CFG.ROBOT;
       const input = game.input;
@@ -532,10 +554,24 @@
       const distToCat = Math.hypot(robot.x - cat.x, robot.y - cat.y);
 
       if (cat.state === 'waiting') {
-        game.interactAvailable = distToCat < CFG.CAT.interactRadiusPx &&
+        const inRange = distToCat < CFG.CAT.interactRadiusPx &&
           game.state === STATE.SEARCHING;
+        game.interactAvailable = inRange;
+        // Si el jugador llega al gatito y no pulsa E, el gatito salta solo al
+        // robot: nunca se queda ahí "pegado sin bajarse".
+        if (inRange) {
+          game._catNearTime = (game._catNearTime || 0) + dt;
+          if (game._catNearTime >= (CFG.CAT.autoPickupSeconds || 0.9)) {
+            game._catNearTime = 0;
+            game.pickUpCat();
+            game.say('¡El gatito salta al robot! Pulsa E para soltarlo', 'ok', 2.6);
+          }
+        } else {
+          game._catNearTime = 0;
+        }
       } else {
         game.interactAvailable = false;
+        game._catNearTime = 0;
       }
 
       if (cat.state === 'carried') {
@@ -546,26 +582,52 @@
       }
 
       if (cat.state === 'falling') {
-        cat.fallProgress = Math.min(1, cat.fallProgress + dt * 1.9);
+        // Salto: primero sale despedido en el aire y aterriza lejos del robot
+        const dist = Math.max(60, Math.hypot(cat.landX - cat.fallX, cat.landY - cat.fallY));
+        const speed = cat.fleeSpeed || CFG.CAT.fleeSpeed || 300;
+        cat.fallProgress = Math.min(1, cat.fallProgress + (dt * speed) / dist);
         const t = cat.fallProgress;
         cat.x = cat.fallX + (cat.landX - cat.fallX) * t;
         cat.y = cat.fallY + (cat.landY - cat.fallY) * t;
+        cat.hop = Math.sin(Math.PI * t) * (cat.hopHeight || CFG.CAT.hopHeightPx || 46);
+        cat.running = true;
         if (cat.fallProgress >= 1) {
+          cat.hop = 0;
           cat.state = 'returning';
           cat.respawnTimer = 0;
-          game.say('El gatito vuelve junto al árbol...', 'warn', 2);
+          game.say('El gatito salió corriendo... vuelve junto al árbol', 'warn', 2.6);
+          game.emit('cat-flee', {});
         }
       }
 
       if (cat.state === 'returning') {
+        // Corre de vuelta al árbol a la vista del jugador (nada de teletransporte)
         cat.respawnTimer += dt;
-        if (cat.respawnTimer > CFG.CAT.respawnDelay) {
+        const tx = LEVEL.catStart.x, ty = LEVEL.catStart.y;
+        const dx = tx - cat.x, dy = ty - cat.y;
+        const d = Math.hypot(dx, dy);
+        const speed = (CFG.CAT.fleeSpeed || 300) * 0.75;
+        if (d > 12) {
+          const stepLen = Math.min(d, speed * dt);
+          cat.x += (dx / d) * stepLen;
+          cat.y += (dy / d) * stepLen;
+          cat.heading = Math.atan2(dy, dx);
+          cat.running = true;
+        } else {
+          cat.running = false;
+          cat.x = tx; cat.y = ty;
+          cat.hop = 0;
           cat.state = 'waiting';
-          cat.x = LEVEL.catStart.x;
-          cat.y = LEVEL.catStart.y;
           cat.wobble = 0;
           game.state = STATE.SEARCHING;
           game.stability.charge = 0;
+          game.emit('cat-respawn', {});
+        }
+        // Red de seguridad: si por lo que sea se atasca, vuelve igualmente
+        if (cat.respawnTimer > CFG.CAT.respawnDelay + 24) {
+          cat.x = tx; cat.y = ty; cat.state = 'waiting';
+          cat.running = false; cat.hop = 0;
+          game.state = STATE.SEARCHING; game.stability.charge = 0;
           game.emit('cat-respawn', {});
         }
       }
@@ -598,8 +660,7 @@
             game.stability.critical = true;
             game.emit('stability-critical', {});
           }
-          if (game.stability.charge >= 1) {
-            game.stability.charge = 1;
+          if (game.stability.isFull()) {
             game.startCatFall('speed');
           }
         } else {
@@ -612,8 +673,10 @@
           }
         }
         // El techo por choques nunca se supera
-        if (game.stability.charge > game.stability.maxCap) {
-          game.stability.charge = game.stability.maxCap;
+        game.stability.charge = Math.min(game.stability.charge, game.stability.maxCap);
+        if (game.stability.isFull() && game._carryGrace > 0) {
+          // margen de 0,1 s al recoger para no caer en el mismo instante
+          game.stability.charge = Math.min(game.stability.charge, game.stability.maxCap - 0.02);
         }
 
         // Entrega en la veterinaria

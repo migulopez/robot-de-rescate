@@ -74,8 +74,14 @@
     // ----- Gatito -----
     CAT: {
       interactRadiusPx: 110,   // distancia para poder rescatarlo
-      respawnDelay: 1.9,       // s antes de volver al árbol tras caerse
+      respawnDelay: 2.6,       // s que el gatito corre por el suelo antes de volver al árbol
       carriedScale: 0.86,
+      fleeDistancePx: 380,     // cuánto corre el gatito al caerse
+      fleeSpeed: 300,          // px/s de su carrera (se ve claramente)
+      hopHeightPx: 46,         // altura del salto al caerse
+      // Al llegar a la zona de rescate pulsa E; si no lo hace en este tiempo,
+      // el gatito salta solo al robot (nunca se queda "pegado" sin bajar)
+      autoPickupSeconds: 0.9,
     },
 
     // ----- Entrega / veterinaria -----

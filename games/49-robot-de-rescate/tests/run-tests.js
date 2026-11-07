@@ -391,11 +391,57 @@ test('El gatito vuelve a su posición inicial tras caerse', function () {
   g.setKey('forward', true);
   simUntil(g, 8, function () { return g.cat.state !== 'carried'; }, g);
   g.setKey('forward', false);
-  sim(g, 3.5);
+  // Primero salta y corre lejos del robot, y luego vuelve corriendo al árbol
+  simUntil(g, 3, function () { return g.cat.state === 'returning'; }, g);
+  assert(g.cat.state === 'returning' || g.cat.state === 'waiting',
+    'el gatito no saltó ni corrió: ' + g.cat.state);
+  simUntil(g, 14, function () { return g.cat.state === 'waiting'; }, g);
   assert(g.cat.state === 'waiting', 'el gatito no volvió a esperar: ' + g.cat.state);
   near(g.cat.x, g.level.catStart.x, 1, 'x del gatito');
   near(g.cat.y, g.level.catStart.y, 1, 'y del gatito');
   assert(g.state === 'searching', 'el juego no volvió al estado de búsqueda');
+});
+
+test('El gatito salta en el aire y corre lejos al caerse', function () {
+  const g = carryingInLane();
+  g.robot.fast = true;
+  g.setKey('forward', true);
+  simUntil(g, 8, function () { return g.cat.state === 'falling'; }, g);
+  g.setKey('forward', false);
+  const robotX = g.robot.x, robotY = g.robot.y;
+  const catX = g.cat.x, catY = g.cat.y;
+  // a mitad del salto, está en el aire y se mueve
+  sim(g, 0.35);
+  assert(g.cat.hop > 8, 'el gatito no saltó: hop=' + (g.cat.hop || 0).toFixed(1));
+  assert(g.cat.running === true, 'el gatito no está corriendo');
+  const moved = Math.hypot(g.cat.x - catX, g.cat.y - catY);
+  assert(moved > 40, 'el gatito casi no se movió al caerse: ' + Math.round(moved) + ' px');
+  // y acaba lejos del robot
+  simUntil(g, 3, function () { return g.cat.state !== 'falling'; }, g);
+  const away = Math.hypot(g.cat.x - robotX, g.cat.y - robotY);
+  assert(away > 200, 'el gatito se quedó pegado al robot: ' + Math.round(away) + ' px');
+});
+
+test('Si el robot llega al gatito sin pulsar E, el gatito salta solo', function () {
+  const g = newGame();
+  g.dog.x = -9999; g.dog.y = -9999;
+  g.robot.x = g.level.catStart.x + 24;
+  g.robot.y = g.level.catStart.y + 70;
+  sim(g, 0.3);
+  assert(g.cat.state === 'waiting', 'se recogió demasiado rápido');
+  sim(g, 1.4);
+  assert(g.cat.state === 'carried', 'el gatito no subió solo: ' + g.cat.state);
+  assert(g.state === 'carrying', 'el estado no cambió: ' + g.state);
+});
+
+test('La caída funciona aunque la estabilidad máxima esté reducida por choques', function () {
+  const g = carryingInLane();
+  g.stability.maxCap = 0.4;          // ya dañado
+  g.robot.fast = true;
+  g.setKey('forward', true);
+  simUntil(g, 10, function () { return g.cat.state !== 'carried'; }, g);
+  assert(g.cat.state === 'falling' || g.cat.state === 'returning',
+    'con el techo al 40 % el gatito nunca cayó: ' + g.cat.state);
 });
 
 test('La tolerancia es configurable', function () {

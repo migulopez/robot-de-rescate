@@ -61,11 +61,12 @@
         } else if (e.type === 'cat-pickup') {
           spawnBurst(particles, game.cat.x, game.cat.y, '#ffd1e0', 22,
             { speed: 140, life: 0.9, size: 4.5, gravity: -60 });
-          floaters.push({ x: game.cat.x, y: game.cat.y - 40, text: '¡Rescatado!', color: '#8ef7b6', life: 1.4, max: 1.4 });
+          floaters.push({ x: game.cat.x + 70, y: game.cat.y - 30, text: '¡Rescatado!', color: '#8ef7b6', life: 1.4, max: 1.4 });
         } else if (e.type === 'cat-fall') {
           spawnBurst(particles, game.cat.x, game.cat.y, '#ffb3b3', 26,
             { speed: 160, life: 1.0, size: 5, gravity: 120 });
-          floaters.push({ x: game.robot.x, y: game.robot.y - 40, text: '¡Se cayó!', color: '#ff8080', life: 1.6, max: 1.6 });
+          floaters.push({ x: game.cat.x, y: game.cat.y - 30, text: '¡El gatito saltó!',
+            color: '#ffd166', life: 1.8, max: 1.8 });
           camera.shake = 14;
         } else if (e.type === 'cat-respawn') {
           spawnBurst(particles, game.cat.x, game.cat.y, '#c8f7d4', 16,
@@ -125,9 +126,26 @@
       const blink = catBlink > 0;
       if (cat.state === 'waiting' || cat.state === 'returning' || cat.state === 'falling') {
         const landing = cat.state === 'falling' ? 1 + cat.fallProgress * 0.25 : 1;
-        S.drawCat(ctx, cat.x, cat.y, { scale: 1.75 * landing, time: elapsed, blink });
+        S.drawCat(ctx, cat.x, cat.y, {
+          scale: 1.75 * landing, time: elapsed, blink,
+          running: !!cat.running, hop: cat.hop || 0,
+        });
         if (game.interactAvailable) {
           drawInteractPrompt(cat.x, cat.y, elapsed);
+        }
+        if (cat.running) {
+          // polvo de la carrera
+          ctx.save();
+          ctx.globalAlpha = 0.5;
+          ctx.fillStyle = 'rgba(230, 220, 180, 0.85)';
+          for (let i = 0; i < 3; i++) {
+            const ph = ((elapsed * 2.2) + i * 0.33) % 1;
+            ctx.globalAlpha = 0.45 * (1 - ph);
+            ctx.beginPath();
+            ctx.arc(cat.x - (cat.x - (cat.fleeFromX || cat.x)) * 0.1 + (i - 1) * 12, cat.y + 18 + ph * 16, 5 + ph * 7, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.restore();
         }
       }
 
@@ -162,7 +180,8 @@
         const bs = game.robot.x * 0.7;
         S.drawCat(ctx, game.robot.x + Math.cos(game.robot.angle) * 2,
           game.robot.y + Math.sin(game.robot.angle) * 2 - 30,
-          { scale: 1.75 * riding, time: elapsed + 0.7, wobble: game.stability.charge, blink });
+          { scale: 1.75 * riding, time: elapsed + 0.7, wobble: game.stability.charge, blink,
+            hop: Math.sin(elapsed * 9) * 4 * game.stability.charge });
         // aura de seguridad
         ctx.save();
         const danger = Math.max(game.stability.charge,

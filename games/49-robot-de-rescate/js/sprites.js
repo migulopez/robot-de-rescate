@@ -56,24 +56,30 @@
     const wobble = o.wobble || 0;
     const alpha = o.alpha === undefined ? 1 : o.alpha;
     const t = o.time || 0;
-    const bob = Math.sin(t * 3.2) * (o.bobAmp || 1.1);
+    const bob = o.running
+      ? -Math.abs(Math.sin(t * 11)) * 7      // zancada: bota al correr
+      : Math.sin(t * 3.2) * (o.bobAmp || 1.1);
     const gridW = 24 * scale;
     const gridH = 29 * scale;
 
     ctx.save();
     ctx.globalAlpha = alpha;
-    ctx.translate(x, y + bob);
+    ctx.translate(x, y + bob - (o.hop || 0));
+    if (o.running) {
+      // pequeño cabeceo al correr
+      ctx.rotate(Math.sin(t * 11) * 0.06);
+    }
     if (wobble) {
       ctx.rotate(Math.sin(t * (7 + wobble * 12)) * wobble * 0.34);
       ctx.translate(Math.sin(t * 11) * wobble * 3, Math.cos(t * 9) * wobble * 2);
     }
 
-    // sombra
+    // sombra (se separa del cuerpo cuando el gatito salta)
     ctx.save();
-    ctx.globalAlpha = alpha * 0.24;
+    ctx.globalAlpha = alpha * (0.24 - Math.min(0.12, (o.hop || 0) * 0.002));
     ctx.fillStyle = '#10331a';
     ctx.beginPath();
-    ctx.ellipse(0, gridH * 0.44, gridW * 0.38, gridH * 0.11, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, gridH * 0.44 + (o.hop || 0), gridW * (0.38 - (o.hop || 0) * 0.001), gridH * 0.11, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
 
