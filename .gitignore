@@ -1,0 +1,6 @@
+# Dependencias y artefactos locales
+node_modules/
+package-lock.json
+package.json
+.DS_Store
+*.log

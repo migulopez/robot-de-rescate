@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0" />
+<meta http-equiv="Pragma" content="no-cache" />
+<meta http-equiv="Expires" content="0" />
+<title>49. Robot de rescate simulado</title>
+<meta name="description" content="Videojuego educativo: controla un robot móvil con sensor ultrasónico, rescata a un gatito y llévalo a la veterinaria." />
+<link rel="stylesheet" href="css/game.css?v=2026-11-06-4" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>" />
+</head>
+<body>
+<div id="app">
+
+  <!-- ====== BARRA SUPERIOR ====== -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-icon">
+        <svg viewBox="0 0 64 64" aria-hidden="true">
+          <rect x="10" y="20" width="44" height="28" rx="8" fill="#3f444b" stroke="#d9443e" stroke-width="3"/>
+          <circle cx="22" cy="34" r="6" fill="#c9d3dd" stroke="#5c666f" stroke-width="2"/>
+          <circle cx="42" cy="34" r="6" fill="#c9d3dd" stroke="#5c666f" stroke-width="2"/>
+          <rect x="26" y="30" width="12" height="8" rx="2" fill="#1b5fbf"/>
+          <rect x="6" y="24" width="6" height="20" rx="3" fill="#16233a"/>
+          <rect x="52" y="24" width="6" height="20" rx="3" fill="#16233a"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <h1>Robot de rescate <span>simulado</span></h1>
+        <p>Actividad 49 · Robótica móvil · Sensor ultrasónico HC-SR04</p>
+      </div>
+    </div>
+
+    <div class="topbar-actions">
+      <button class="btn" id="btn-help" title="Instrucciones (H)">? Ayuda</button>
+      <button class="btn" id="btn-pause">⏸ Pausa</button>
+      <button class="btn danger" id="btn-reset">⟲ Reiniciar</button>
+    </div>
+  </header>
+
+  <!-- ====== ÁREA PRINCIPAL ====== -->
+  <main class="stage">
+    <div class="canvas-wrap">
+      <canvas id="game-canvas"></canvas>
+
+      <!-- HUD flotante superior izquierdo -->
+      <div class="hud hud-left">
+        <div class="panel objective-panel">
+          <div class="panel-label">Objetivo actual</div>
+          <div class="objective" id="objective-text">Llega hasta el gatito y pulsa E</div>
+        </div>
+
+        <div class="panel stat-row">
+          <div class="stat-cell">
+            <div class="panel-label">Tiempo</div>
+            <div class="mono" id="timer-value">00:00.00</div>
+          </div>
+          <div class="stat-cell">
+            <div class="panel-label">Velocidad</div>
+            <div class="mono"><span id="speed-value">0 cm/s</span></div>
+            <div class="bar"><div class="bar-fill normal" id="speed-bar" style="width:0%"></div></div>
+            <span class="mode-tag normal" id="speed-mode">NORMAL</span>
+          </div>
+        </div>
+
+        <div class="panel sensor-panel">
+          <div class="panel-head">
+            <span class="panel-label">Sensor ultrasónico HC-SR04</span>
+            <span class="dot clear" id="sensor-dot"></span>
+          </div>
+          <div class="sensor-readout">
+            <span class="sensor-number clear" id="sensor-value">200</span>
+            <span class="sensor-unit">cm</span>
+          </div>
+          <div class="sensor-track">
+            <div class="sensor-range-fill clear" id="sensor-range"></div>
+            <span class="sensor-tick" style="left:25%">20</span>
+            <span class="sensor-tick" style="left:60%">50</span>
+          </div>
+          <div class="sensor-state clear" id="sensor-state">Camino despejado</div>
+        </div>
+
+        <div class="panel stability-panel" id="stability-panel">
+          <div class="panel-head">
+            <span class="panel-label">Estabilidad del transporte</span>
+            <span class="cat-chip waiting" id="cat-chip">gatito</span>
+          </div>
+          <div class="bar tall cap-bar">
+            <div class="bar-cap" id="stability-cap" style="left:100%"></div>
+            <div class="bar-fill ok" id="stability-bar" style="width:0%"></div>
+          </div>
+          <div class="sub" id="stability-text">Sin gatito a bordo</div>
+          <div class="cap-line">
+            <span class="panel-label">Estabilidad máx.</span>
+            <strong class="mono" id="stability-cap-text">100 %</strong>
+          </div>
+          <div class="tolerance-row">
+            <label for="tolerance-range">Tolerancia de velocidad rápida</label>
+            <span class="mono" id="tolerance-value">2.5 s</span>
+            <input type="range" id="tolerance-range" min="1" max="8" step="0.5" value="2.5" />
+          </div>
+        </div>
+
+        <div class="panel health-panel" id="health-panel">
+          <div class="panel-head">
+            <span class="panel-label">Salud del robot</span>
+            <span class="health-tag ok" id="health-tag">OK</span>
+          </div>
+          <div class="bar"><div class="bar-fill ok" id="health-bar" style="width:100%"></div></div>
+          <div class="sub" id="health-text">100 % · sin daños</div>
+          <div class="workshop-row" id="workshop-row">
+            <span class="ws-icon">🔧</span>
+            <span id="workshop-text">Taller disponible</span>
+          </div>
+        </div>
+
+        <div class="panel dog-panel" id="dog-panel">
+          <div class="panel-head">
+            <span class="panel-label">Perro guardián</span>
+            <span class="dog-tag safe" id="dog-tag">TRANQUILO</span>
+          </div>
+          <div class="sub" id="dog-text">Patrulla junto a su caseta</div>
+        </div>
+
+        <div class="panel cat-panel">
+          <div class="panel-label">Estado del gatito</div>
+          <div class="cat-status" id="cat-status">Pendiente de rescate</div>
+        </div>
+      </div>
+
+      <!-- HUD flotante superior derecho: panel técnico -->
+      <div class="hud hud-right">
+        <div class="panel tech-panel">
+          <div class="panel-head">
+            <span class="panel-label">Panel técnico en tiempo real</span>
+            <span class="live"><span></span>LIVE</span>
+          </div>
+          <dl class="tech-list">
+            <div><dt>Distancia (HC-SR04)</dt><dd id="tech-distance">200 cm</dd></div>
+            <div><dt>Velocidad</dt><dd id="tech-speed">0 cm/s</dd></div>
+            <div><dt>Estado del motor</dt><dd id="tech-motor">detenido</dd></div>
+            <div><dt>Estado del transporte</dt><dd id="tech-transport">inactivo</dd></div>
+            <div><dt>Detección de obstáculos</dt><dd id="tech-obstacle">ninguno</dd></div>
+            <div><dt>Ruedas</dt><dd id="tech-wheels">detenidas</dd></div>
+            <div><dt>Estado del gatito</dt><dd id="tech-cat">waiting</dd></div>
+            <div><dt>Salud del robot</dt><dd id="tech-health">100 %</dd></div>
+            <div><dt>Estabilidad máx.</dt><dd id="tech-cap">100 %</dd></div>
+            <div><dt>Taller</dt><dd id="tech-workshop">fuera</dd></div>
+            <div><dt>Perro</dt><dd id="tech-dog">patrulla</dd></div>
+            <div><dt>Choques</dt><dd id="tech-collisions">0</dd></div>
+            <div><dt>Obstáculos evitados</dt><dd id="tech-avoided">0</dd></div>
+          </dl>
+        </div>
+
+        <div class="panel controls-panel">
+          <div class="panel-label">Controles</div>
+          <div class="keys">
+            <div class="key" data-key="forward"><kbd>W</kbd><span>Avanzar</span></div>
+            <div class="key" data-key="left"><kbd>A</kbd><span>Girar izq.</span></div>
+            <div class="key" data-key="back"><kbd>S</kbd><span>Retroceder</span></div>
+            <div class="key" data-key="right"><kbd>D</kbd><span>Girar der.</span></div>
+            <div class="key" data-key="brake"><kbd>ESPACIO</kbd><span>Frenar</span></div>
+            <div class="key wide"><kbd>E</kbd><span>Recoger / soltar gatito</span></div>
+            <div class="key wide"><kbd>SHIFT</kbd><span>Cambiar velocidad</span></div>
+            <div class="key wide"><kbd>P</kbd><span>Pausa</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mensajes flotantes -->
+      <div class="messages" id="messages"></div>
+
+      <!-- Banner de advertencia -->
+      <div class="banner" id="banner"></div>
+
+      <!-- ====== CONTROLES TÁCTILES ====== -->
+      <div class="touch-controls">
+        <div class="dpad">
+          <button class="tbtn up" data-hold="forward" aria-label="Avanzar">▲</button>
+          <button class="tbtn left" data-hold="left" aria-label="Girar a la izquierda">◀</button>
+          <button class="tbtn down" data-hold="back" aria-label="Retroceder">▼</button>
+          <button class="tbtn right" data-hold="right" aria-label="Girar a la derecha">▶</button>
+        </div>
+        <div class="action-stack">
+          <button class="tbtn big brake" data-hold="brake" aria-label="Frenar"><span>FRENO</span></button>
+          <button class="tbtn big speed" id="btn-speed" aria-label="Cambiar velocidad"><span>VEL</span></button>
+          <button class="tbtn big action" id="btn-action" aria-label="Recoger o soltar gatito"><span>E</span></button>
+        </div>
+      </div>
+
+      <!-- ====== OVERLAY ====== -->
+      <div class="overlay" id="overlay">
+        <div class="overlay-card">
+          <h2 id="overlay-title">¡MISIÓN CUMPLIDA!</h2>
+          <p id="overlay-body"></p>
+          <div class="overlay-stats" id="overlay-stats"></div>
+          <div class="overlay-actions" id="overlay-actions"></div>
+        </div>
+      </div>
+
+      <!-- ====== PANEL DE AYUDA ====== -->
+      <aside class="help-panel" id="help-panel">
+        <button class="help-close" id="btn-help-close" aria-label="Cerrar">×</button>
+        <h3>Cómo jugar</h3>
+        <p>Conduce el <strong>robot de rescate</strong> hasta el gatito que está junto al árbol,
+           recógelo con <kbd>E</kbd> y llévalo hasta la <strong>veterinaria</strong>.</p>
+        <ul>
+          <li><kbd>W</kbd> / <kbd>S</kbd> avanzar y retroceder.</li>
+          <li><kbd>A</kbd> / <kbd>D</kbd> girar a izquierda y derecha.</li>
+          <li><kbd>ESPACIO</kbd> frenar. <kbd>E</kbd> recoger o soltar al gatito.</li>
+          <li><kbd>SHIFT</kbd> (o el botón VEL) cambia entre velocidad normal y rápida.</li>
+          <li><kbd>P</kbd> pausa · <kbd>R</kbd> reinicia.</li>
+        </ul>
+        <h3>El sensor ultrasónico</h3>
+        <p>El HC-SR04 mide sólo lo que hay <em>delante</em> del robot, dentro de un cono de ±18°:</p>
+        <ul>
+          <li><span class="tag ok">&gt; 50 cm</span> camino despejado.</li>
+          <li><span class="tag warn">20 – 50 cm</span> obstáculo cercano.</li>
+          <li><span class="tag danger">&lt; 20 cm</span> obstáculo muy próximo.</li>
+        </ul>
+        <h3>El transporte del gatito</h3>
+        <p>Puedes correr, pero no por mucho tiempo. Si llevas al gatito a velocidad rápida
+           durante más de la <strong>tolerancia</strong> configurada, el indicador de
+           inestabilidad sube y el gatito se soltará, volviendo al árbol.
+           Baja la velocidad para que el indicador disminuya.</p>
+        <h3>Choques y taller</h3>
+        <p>Cada choque <strong>daña el robot</strong> y reduce la <strong>estabilidad máxima</strong>
+           del transporte: con 3 choques o más sólo podrás alcanzar el 30 %.
+           Ve al <strong>TALLER</strong> (junto a la ruta, a mitad de camino) y espera unos
+           segundos dentro de la zona amarilla para volver al 100 %.</p>
+        <h3>El perro guardián 🐕</h3>
+        <p>Hay un perro junto a su caseta, a mitad del recorrido. <strong>Detecta al robot</strong>
+           si entras en su cono de visión o te acercas demasiado (y te oye antes si corres).
+           Si te detecta, <strong>te persigue</strong>, ladra y te muerde: pierdes salud y, si
+           llevas al gatito, se asusta y puede caerse.</p>
+        <p>Es más lento que tu robot en modo rápido: <strong>huye y rompe la línea de visión</strong>
+           detrás de árboles y edificios. Si te alejas, te pierde y vuelve a su caseta.</p>
+        <h3>Modelo real</h3>
+        <p class="tiny">El robot del juego está inspirado en el prototipo físico del repositorio
+           (chasis impreso en 3D, ruedas con aros rojos, plataforma metálica y HC-SR04 frontal).
+           El gatito reproduce el sprite pixel-art de la imagen de referencia.</p>
+        <div class="refs">
+          <figure>
+            <img src="assets/img/robot-real.jpg" alt="Prototipo real del robot de rescate" loading="lazy" />
+            <figcaption>Prototipo del robot</figcaption>
+          </figure>
+          <figure>
+            <img src="assets/img/gatito-referencia.png" alt="Sprite de referencia del gatito" loading="lazy" />
+            <figcaption>Gatito de referencia</figcaption>
+          </figure>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="footbar">
+    <span>Actividad 49 · Robot de rescate simulado</span>
+    <span class="sep">•</span>
+    <span>HTML5 · CSS3 · JavaScript · Canvas 2D</span>
+    <span class="sep">•</span>
+    <span>Vista cenital (top-down)</span>
+    <span class="sep">•</span>
+    <span class="build" id="build-tag">v4 · mapa 4200×3200 · perro 🐕 · taller 🔧</span>
+  </footer>
+</div>
+
+<script src="js/config.js?v=2026-11-06-4"></script>
+<script src="js/level.js?v=2026-11-06-4"></script>
+<script src="js/physics.js?v=2026-11-06-4"></script>
+<script src="js/dog.js?v=2026-11-06-4"></script>
+<script src="js/game.js?v=2026-11-06-4"></script>
+<script src="js/sprites.js?v=2026-11-06-4"></script>
+<script src="js/world.js?v=2026-11-06-4"></script>
+<script src="js/render.js?v=2026-11-06-4"></script>
+<script src="js/ui.js?v=2026-11-06-4"></script>
+<script src="js/main.js?v=2026-11-06-4"></script>
+</body>
+</html>
