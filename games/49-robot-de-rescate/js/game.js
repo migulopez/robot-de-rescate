@@ -230,7 +230,7 @@
       let land = null;
       for (let k = 0; k < 3 && !land; k++) {
         const a = ang + k * (Math.PI * 2 / 3);
-        for (let d = dist; d >= 90; d -= 24) {
+        for (let d = dist; d >= 240; d -= 24) {
           const cx = game.robot.x + Math.cos(a) * d;
           const cy = game.robot.y + Math.sin(a) * d;
           if (cx > 60 && cy > 60 && cx < LEVEL.width - 60 && cy < LEVEL.height - 60 &&
@@ -240,8 +240,8 @@
           }
         }
       }
-      if (!land) land = { x: game.robot.x - Math.cos(game.robot.angle) * 120,
-        y: game.robot.y - Math.sin(game.robot.angle) * 120, dist: 120 };
+      if (!land) land = { x: game.robot.x + Math.cos(ang) * 240,
+        y: game.robot.y + Math.sin(ang) * 240, dist: 240 };
       game.cat.fleeFromX = game.robot.x;
       game.cat.fleeFromY = game.robot.y;
       game.cat.landX = land.x;

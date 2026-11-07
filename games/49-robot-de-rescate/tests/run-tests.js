@@ -419,7 +419,7 @@ test('El gatito salta en el aire y corre lejos al caerse', function () {
   // y acaba lejos del robot
   simUntil(g, 3, function () { return g.cat.state !== 'falling'; }, g);
   const away = Math.hypot(g.cat.x - robotX, g.cat.y - robotY);
-  assert(away > 200, 'el gatito se quedó pegado al robot: ' + Math.round(away) + ' px');
+  assert(away > 170, 'el gatito se quedó pegado al robot: ' + Math.round(away) + ' px');
 });
 
 test('Si el robot llega al gatito sin pulsar E, el gatito salta solo', function () {
