@@ -1,4 +1,7 @@
-# 49. Robot de rescate simulado 🤖🐱
+# 49. Robot de rescate simulado
+
+> **Jugar online:** https://migulopez.github.io/robot-de-rescate/
+> (se publica automáticamente con GitHub Pages desde `main`). 🤖🐱
 
 > **Entrada directa:** `http://localhost:8080/` abre el juego automáticamente.
 > No hay menú ni portada intermedia.
