@@ -9,7 +9,7 @@ const path = require('path');
 const vm = require('vm');
 
 const JS_DIR = path.join(__dirname, '..', 'js');
-['config', 'level', 'physics', 'dog', 'game'].forEach(function (f) {
+['config', 'level', 'physics', 'dog', 'game', 'audio'].forEach(function (f) {
   vm.runInThisContext(fs.readFileSync(path.join(JS_DIR, f + '.js'), 'utf8'), { filename: f });
 });
 
@@ -692,6 +692,119 @@ test('Los assets llevan versión para evitar caché del navegador', function () 
   scripts.forEach(function (tag) {
     assert(tag.indexOf('?v=') !== -1, 'script sin versión (puede quedar en caché): ' + tag);
   });
+});
+
+test('El HUD no puede solaparse con los controles (banda reservada)', function () {
+  const fs2 = require('fs');
+  const path2 = require('path');
+  const css = fs2.readFileSync(path2.join(__dirname, '..', 'css', 'game.css'), 'utf8');
+  assert(/--controls-band:\s*\d+px/.test(css), 'no hay variable de banda de controles');
+  assert(/\.hud\s*\{[^}]*max-height:\s*calc\(100% - var\(--controls-band\)/.test(css),
+    'el HUD no limita su altura por encima de la banda de controles');
+  assert(/\.hud\s*\{[^}]*overflow-y:\s*auto/.test(css), 'el HUD no tiene scroll interno');
+  assert(/\.touch-controls\s*\{[^}]*height:\s*var\(--controls-band\)/.test(css),
+    'los controles táctiles no ocupan la banda reservada');
+  assert(/@media \(max-height: 820px\)/.test(css), 'faltan reglas para ventanas bajas');
+});
+
+test('El módulo de audio no rompe sin AudioContext', function () {
+  const fs2 = require('fs');
+  const path2 = require('path');
+  const vm2 = require('vm');
+  const ctx = vm2.createContext({ console: console, Math: Math, Date: Date,
+    setInterval: setInterval, clearInterval: clearInterval });
+  vm2.runInContext(fs2.readFileSync(path2.join(__dirname, '..', 'js', 'audio.js'), 'utf8'),
+    ctx, { filename: 'audio.js' });
+  const a = ctx.RDR.createAudio();
+  assert(a.supported === false, 'debería detectar que no hay AudioContext');
+  assert(a.unlock() === false, 'unlock no debería lanzar ni devolver true');
+  a.sfx.meowPickup(); a.sfx.bark(); a.sfx.crash(); a.updateEngine(200, true);
+  a.toggle();
+  assert(a.enabled === false, 'el botón de sonido no silencia');
+  assert(a.toggle() === true, 'el botón de sonido no reactiva');
+});
+
+test('El audio sintetiza música, miau, ladrido y motor', function () {
+  const fs2 = require('fs');
+  const path2 = require('path');
+  const vm2 = require('vm');
+  const log = [];
+  function param() {
+    return { value: 0, setValueAtTime() {}, exponentialRampToValueAtTime() {},
+      setTargetAtTime() {}, cancelScheduledValues() {} };
+  }
+  function node(type) {
+    return { type: type, connect() {}, gain: param(), frequency: param(), Q: param(),
+      start() { log.push(type + ':start'); }, stop() {} };
+  }
+  function FakeCtx() {
+    return {
+      currentTime: 0, sampleRate: 44100, state: 'running', destination: {},
+      createGain() { log.push('gain'); return node('gain'); },
+      createOscillator() { log.push('osc'); return node('osc'); },
+      createBiquadFilter() { log.push('filter'); return node('filter'); },
+      createBufferSource() { log.push('bufferSource'); return node('bufferSource'); },
+      createBuffer(ch, len) { return { getChannelData() { return new Float32Array(len); } }; },
+      resume() {},
+    };
+  }
+  const ctx = vm2.createContext({ console: console, Math: Math, Date: Date,
+    setInterval: setInterval, clearInterval: clearInterval,
+    AudioContext: FakeCtx,
+    localStorage: { getItem() { return null; }, setItem() {} } });
+  vm2.runInContext(fs2.readFileSync(path2.join(__dirname, '..', 'js', 'audio.js'), 'utf8'),
+    ctx, { filename: 'audio.js' });
+  const a = ctx.RDR.createAudio();
+  assert(a.unlock() === true, 'no se pudo iniciar el audio');
+  assert(log.length > 6, 'la música de fondo no programó notas');
+  assert(a.state.seq.running === true, 'el secuenciador no está corriendo');
+
+  log.length = 0; a.sfx.meowPickup();
+  assert(log.filter(function (x) { return x === 'osc'; }).length >= 2, 'el miau no usa osciladores');
+  log.length = 0; a.sfx.bark();
+  assert(log.filter(function (x) { return x === 'bufferSource'; }).length >= 1, 'el ladrido no usa ruido');
+  log.length = 0; a.sfx.victory();
+  assert(log.filter(function (x) { return x === 'osc'; }).length >= 5, 'la victoria no suena');
+  a.updateEngine(330, true);          // el motor sigue la velocidad
+  assert(a.state.engineOsc.frequency !== null, 'el motor no tiene oscilador');
+  a.stopMusic();
+  assert(a.state.seq.running === false, 'la música no se detiene');
+});
+
+test('Los eventos del juego disparan sus sonidos', function () {
+  const audio = RDR.createAudio();
+  const g = newGame();
+  const played = [];
+  ['meowPickup', 'meowFall', 'bark', 'crash', 'repair', 'victory'].forEach(function (k) {
+    audio.sfx[k] = function () { played.push(k); };
+  });
+  audio.attach(g);
+  g.emit('cat-pickup', {});
+  g.emit('cat-fall', {});
+  g.emit('dog-bark', {});
+  g.emit('impact', {});
+  g.emit('repaired', {});
+  g.emit('deliver', {});
+  assert(played.indexOf('meowPickup') !== -1, 'el rescate no hace miau');
+  assert(played.indexOf('meowFall') !== -1, 'la caída no hace miau');
+  assert(played.indexOf('bark') !== -1, 'el perro no ladra al detectar');
+  assert(played.indexOf('crash') !== -1, 'el choque no suena');
+  assert(played.indexOf('repair') !== -1, 'la reparación no suena');
+  assert(played.indexOf('victory') !== -1, 'la entrega no suena');
+  // y el evento original sigue llegando al juego (no rompe los efectos visuales)
+  assert(g.events.length >= 6, 'se perdieron los eventos del juego');
+});
+
+test('El HTML carga el audio y tiene botón de sonido', function () {
+  const fs2 = require('fs');
+  const path2 = require('path');
+  const html = fs2.readFileSync(path2.join(__dirname, '..', 'index.html'), 'utf8');
+  assert(/<script src="js\/audio\.js\?v=/.test(html), 'no se carga audio.js con versión');
+  assert(/id="btn-sound"/.test(html), 'no hay botón de sonido');
+  const scripts = html.match(/<script src="js\/[a-z]+\.js/g) || [];
+  const iAudio = scripts.findIndex(function (x) { return x.indexOf('audio.js') !== -1; });
+  const iMain = scripts.findIndex(function (x) { return x.indexOf('main.js') !== -1; });
+  assert(iAudio < iMain, 'audio.js debe cargarse antes de main.js');
 });
 
 test('El perro existe y patrulla cerca de su caseta', function () {

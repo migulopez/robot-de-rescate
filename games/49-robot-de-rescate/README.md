@@ -172,17 +172,41 @@ o editando `CONFIG.STABILITY.toleranceSeconds` en `js/config.js`.
 - El HUD muestra su estado (**TRANQUILO / CERCA / TE DETECTÓ / ¡PERSIGUIENDO!**) y el
   panel técnico su estado interno.
 
-### 9. Orientación: minimapa y flechas guía
+### 9. Sonido (sintetizado, sin archivos)
+
+Todo el audio se genera con **WebAudio** (`js/audio.js`): el juego no descarga ni un
+solo MP3 y sigue funcionando sin conexión.
+
+| Sonido | Cuándo |
+| --- | --- |
+| **Música 8 bits de fondo** | siempre; secuenciador de 16 pasos a 112 BPM con melodía de onda cuadrada y bajo de triángulo |
+| **Miau** | al recoger al gatito (dos maullidos alegres) |
+| **Maullido + golpe** | cuando el gatito se cae |
+| **Ladrido** | cuando el perro te detecta o te muerde |
+| **Motor eléctrico** | continuo, con la frecuencia y el volumen siguiendo la velocidad del robot |
+| Choque, reparación, entrega, aviso del sensor | efectos puntuales |
+
+- Los navegadores exigen un gesto para reproducir audio, así que la música arranca al
+  primer clic o tecla (el icono 🔊 de la cabecera late hasta entonces).
+- Botón **🔊/🔇** en la cabecera o tecla **M** para silenciar; la preferencia se guarda
+  en el navegador.
+- La música es discreta (volumen bajo) para no tapar los avisos ni el motor.
+
+### 10. Orientación: minimapa y flechas guía
 
 - **Minimapa** en la esquina inferior derecha con la ruta, la veterinaria, el taller, la
   caseta del perro, el gatito, el perro (rojo si te persigue) y el robot con su rumbo.
 - **Flechas guía** en el borde de la pantalla cuando el taller (si el robot está dañado)
   o el perro están fuera de vista, con la distancia de referencia.
+- **HUD sin solapes**: los controles táctiles ocupan una banda reservada abajo
+  (`--controls-band`) y el HUD limita su altura a la zona libre, con scroll fino y reglas
+  específicas para ventanas bajas (≤ 820 px, ≤ 700 px). Un ajuste automático en
+  `main.js` oculta filas secundarias si aun así no cupieran.
 - Pie de página con la **versión del build** y los assets cargados con `?v=`, para que
   el navegador nunca muestre una versión antigua en caché (si detecta JS viejo, avisa
   con «pulsa Ctrl+Shift+R»).
 
-### 10. Mensajes (pop-ups)
+### 11. Mensajes (pop-ups)
 
 - Los avisos se crean **una sola vez** y no se reconstruyen en cada fotograma, así que su
   animación no parpadea.
@@ -224,6 +248,7 @@ games/49-robot-de-rescate/
 │   ├── physics.js          # Colisiones, raycasting del sensor y movimiento
 │   ├── game.js             # Estado, reglas y simulación con paso fijo
 │   ├── sprites.js          # Dibujo 2D procedimental (robot, gatito, objetos)
+│   ├── audio.js            # Sonido sintetizado: música 8 bits, miau, ladrido, motor
 │   ├── world.js            # Terreno pre-renderizado, cámara y partículas
 │   ├── render.js           # Composición de la escena y efectos
 │   ├── ui.js               # HUD, panel técnico, teclado y controles táctiles
@@ -232,7 +257,7 @@ games/49-robot-de-rescate/
 │   ├── robot-real.jpg      # Fotografía del prototipo real
 │   └── gatito-referencia.png
 ├── tests/
-│   └── run-tests.js        # 56 pruebas automáticas de las mecánicas
+│   └── run-tests.js        # 61 pruebas automáticas de las mecánicas
 └── README.md
 ```
 
@@ -263,7 +288,7 @@ caída por exceso de velocidad, recuperación del indicador, retorno del gatito 
 árbol, tolerancia configurable, condición de victoria, choques/taller y
 alcanzabilidad del escenario.
 
-Resultado actual: **56 pruebas superadas, 0 fallidas**.
+Resultado actual: **61 pruebas superadas, 0 fallidas**.
 
 Incluyen, además de lo anterior: penalización de salud y de estabilidad máxima por
 choque, daño en roces suaves, que empujar no reste salud por frame, mínimo del 30 % tras

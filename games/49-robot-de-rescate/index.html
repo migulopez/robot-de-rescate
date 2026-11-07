@@ -8,7 +8,7 @@
 <meta http-equiv="Expires" content="0" />
 <title>49. Robot de rescate simulado</title>
 <meta name="description" content="Videojuego educativo: controla un robot móvil con sensor ultrasónico, rescata a un gatito y llévalo a la veterinaria." />
-<link rel="stylesheet" href="css/game.css?v=2026-11-06-4" />
+<link rel="stylesheet" href="css/game.css?v=2026-11-06-6" />
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>" />
 </head>
 <body>
@@ -34,6 +34,7 @@
     </div>
 
     <div class="topbar-actions">
+      <button class="btn sound pulse" id="btn-sound" title="Activar o silenciar el sonido (M)" aria-label="Sonido">🔊</button>
       <button class="btn" id="btn-help" title="Instrucciones (H)">? Ayuda</button>
       <button class="btn" id="btn-pause">⏸ Pausa</button>
       <button class="btn danger" id="btn-reset">⟲ Reiniciar</button>
@@ -116,22 +117,22 @@
           </div>
         </div>
 
-        <div class="panel dog-panel" id="dog-panel">
-          <div class="panel-head">
-            <span class="panel-label">Perro guardián</span>
-            <span class="dog-tag safe" id="dog-tag">TRANQUILO</span>
-          </div>
-          <div class="sub" id="dog-text">Patrulla junto a su caseta</div>
-        </div>
-
-        <div class="panel cat-panel">
-          <div class="panel-label">Estado del gatito</div>
-          <div class="cat-status" id="cat-status">Pendiente de rescate</div>
-        </div>
       </div>
 
       <!-- HUD flotante superior derecho: panel técnico -->
       <div class="hud hud-right">
+        <div class="panel dog-cat-panel">
+          <div class="mini-row">
+            <span class="panel-label">Perro</span>
+            <span class="dog-tag safe" id="dog-tag">TRANQUILO</span>
+          </div>
+          <div class="sub" id="dog-text">Patrulla junto a su caseta</div>
+          <div class="mini-row">
+            <span class="panel-label">Gatito</span>
+            <span class="cat-status" id="cat-status">Pendiente de rescate</span>
+          </div>
+        </div>
+
         <div class="panel tech-panel">
           <div class="panel-head">
             <span class="panel-label">Panel técnico en tiempo real</span>
@@ -262,19 +263,20 @@
     <span class="sep">•</span>
     <span>Vista cenital (top-down)</span>
     <span class="sep">•</span>
-    <span class="build" id="build-tag">v4 · mapa 4200×3200 · perro 🐕 · taller 🔧</span>
+    <span class="build" id="build-tag">v6 · sonido 8 bits 🔊 · HUD sin solapes</span>
   </footer>
 </div>
 
-<script src="js/config.js?v=2026-11-06-4"></script>
-<script src="js/level.js?v=2026-11-06-4"></script>
-<script src="js/physics.js?v=2026-11-06-4"></script>
-<script src="js/dog.js?v=2026-11-06-4"></script>
-<script src="js/game.js?v=2026-11-06-4"></script>
-<script src="js/sprites.js?v=2026-11-06-4"></script>
-<script src="js/world.js?v=2026-11-06-4"></script>
-<script src="js/render.js?v=2026-11-06-4"></script>
-<script src="js/ui.js?v=2026-11-06-4"></script>
-<script src="js/main.js?v=2026-11-06-4"></script>
+<script src="js/config.js?v=2026-11-06-6"></script>
+<script src="js/level.js?v=2026-11-06-6"></script>
+<script src="js/physics.js?v=2026-11-06-6"></script>
+<script src="js/dog.js?v=2026-11-06-6"></script>
+<script src="js/game.js?v=2026-11-06-6"></script>
+<script src="js/sprites.js?v=2026-11-06-6"></script>
+<script src="js/world.js?v=2026-11-06-6"></script>
+<script src="js/render.js?v=2026-11-06-6"></script>
+<script src="js/audio.js?v=2026-11-06-6"></script>
+<script src="js/ui.js?v=2026-11-06-6"></script>
+<script src="js/main.js?v=2026-11-06-6"></script>
 </body>
 </html>
