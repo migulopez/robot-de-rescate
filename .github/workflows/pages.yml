@@ -29,16 +29,22 @@ jobs:
 
       - name: Comprobar que el juego carga (sin dependencias)
         run: |
-          echo "Archivos del sitio:"
-          ls -la
           test -f index.html
           test -f games/49-robot-de-rescate/index.html
           test -f games/49-robot-de-rescate/js/main.js
 
+      - name: Preparar el sitio (sin .git ni archivos de trabajo)
+        run: |
+          mkdir -p _site
+          rsync -a --exclude '.git' --exclude 'node_modules' --exclude '.github' \
+                --exclude '.gitignore' ./ _site/
+          echo "Contenido publicado:"
+          ls -la _site
+
       - name: Empaquetar el sitio
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: _site
 
   deploy:
     needs: build
