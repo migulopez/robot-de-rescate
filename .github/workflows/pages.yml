@@ -1,0 +1,52 @@
+name: Publicar en GitHub Pages
+
+# Publica el juego (sitio estático) en https://migulopez.github.io/robot-de-rescate/
+# cada vez que cambie main, o manualmente desde la pestaña Actions.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Pages
+        uses: actions/configure-pages@v5
+
+      - name: Comprobar que el juego carga (sin dependencias)
+        run: |
+          echo "Archivos del sitio:"
+          ls -la
+          test -f index.html
+          test -f games/49-robot-de-rescate/index.html
+          test -f games/49-robot-de-rescate/js/main.js
+
+      - name: Empaquetar el sitio
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Desplegar en GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

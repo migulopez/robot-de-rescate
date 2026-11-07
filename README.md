@@ -12,6 +12,15 @@ JavaScript), sin instalación ni dependencias externas.
 
 La raíz [`index.html`](index.html) **abre directamente el juego** (sin portada).
 
+### 🌐 Jugar online (GitHub Pages)
+
+**https://migulopez.github.io/robot-de-rescate/**
+
+El sitio se publica solo: `.github/workflows/pages.yml` construye y despliega el
+repositorio en cada push a `main` (también se puede lanzar a mano desde la pestaña
+*Actions → Publicar en GitHub Pages → Run workflow*). Si el enlace da 404, entra en
+**Settings → Pages** y comprueba que la fuente es **GitHub Actions**.
+
 ## 🚀 Cómo ejecutar
 
 **Opción 1 — abrir directamente:** abre `index.html` en cualquier navegador moderno.
@@ -62,3 +71,9 @@ node tests/run-tests.js
 
 Las actividades son independientes entre sí: agregar una nueva no modifica el
 funcionamiento de las anteriores.
+
+## Jugar online
+
+- GitHub Pages: https://migulopez.github.io/robot-de-rescate/
+  - redirige al juego `games/49-robot-de-rescate/`.
+- Se despliega solo con el workflow `.github/workflows/pages.yml` en cada push a `main`.
