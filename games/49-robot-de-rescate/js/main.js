@@ -106,7 +106,7 @@
       if (dt > RDR.CONFIG.SIM.maxFrameTime) dt = RDR.CONFIG.SIM.maxFrameTime;
       if (!isFinite(dt) || dt < 0) dt = 0;
 
-      // Simulación con paso fijo
+      // Simulación con paso fijo (en pausa no avanza nada, ni el cronómetro)
       accumulator += dt;
       let guard = 0;
       while (accumulator >= step && guard < 600) {
@@ -114,6 +114,7 @@
         accumulator -= step;
         guard++;
       }
+      if (game.paused) accumulator = 0;
 
       renderer.render(dt);
       ui.update(dt);

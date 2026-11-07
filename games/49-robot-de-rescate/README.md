@@ -41,6 +41,24 @@ abre `games/49-robot-de-rescate/index.html`.
 También hay **controles táctiles** en pantalla (D-pad + botones FRENO / VEL / E) para
 móviles y tablets.
 
+### Ventana de inicio: la misión de un vistazo
+
+Al entrar aparece una ventana que resume lo esencial antes de conducir:
+
+- **La misión**: árbol → gatito (`E`) → veterinaria (si llegas sin el gatito no cuenta).
+- **Los peligros**: el perro guardián que detecta y muerde, además de árboles, rocas,
+  bancas, cajas y barreras.
+- **La vida**: 100 % de partida, **−30 % por choque** (70 %, 40 %…) y el taller para
+  reparar, con barras de ejemplo.
+- **La estabilidad**: la barra que se llena al correr con el gatito y que también baja
+  su máximo un −30 % con cada choque.
+- Los controles básicos y un botón **▶ ¡Empezar la misión!**
+
+Mientras la ventana está abierta la simulación **está en pausa** (no corre el cronómetro
+ni la salud). Se cierra con el botón, con `ENTER`, con `ESPACIO`, con `P`/`ESC` o con
+cualquier tecla de movimiento (si pulsas `W` ya arranca andando). Se puede volver a abrir
+en cualquier momento con `H`, y **no reaparece** al reiniciar la partida.
+
 ### Objetivo paso a paso
 
 1. Conduce hasta el **árbol** (zona indicada con una circunferencia punteada).
@@ -257,7 +275,7 @@ games/49-robot-de-rescate/
 │   ├── robot-real.jpg      # Fotografía del prototipo real
 │   └── gatito-referencia.png
 ├── tests/
-│   └── run-tests.js        # 61 pruebas automáticas de las mecánicas
+│   └── run-tests.js        # 63 pruebas automáticas de las mecánicas
 └── README.md
 ```
 
@@ -288,7 +306,7 @@ caída por exceso de velocidad, recuperación del indicador, retorno del gatito 
 árbol, tolerancia configurable, condición de victoria, choques/taller y
 alcanzabilidad del escenario.
 
-Resultado actual: **61 pruebas superadas, 0 fallidas**.
+Resultado actual: **63 pruebas superadas, 0 fallidas**.
 
 Incluyen, además de lo anterior: penalización de salud y de estabilidad máxima por
 choque, daño en roces suaves, que empujar no reste salud por frame, mínimo del 30 % tras

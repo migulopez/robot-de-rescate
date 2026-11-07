@@ -58,6 +58,8 @@
       overlayBody: $('#overlay-body'),
       overlayStats: $('#overlay-stats'),
       overlayActions: $('#overlay-actions'),
+      intro: $('#intro-screen'),
+      startBtn: $('#btn-start'),
       pauseBtn: $('#btn-pause'),
       resetBtn: $('#btn-reset'),
       speedBtn: $('#btn-speed'),
@@ -325,6 +327,17 @@
     function bindInput() {
       doc.addEventListener('keydown', function (e) {
         if (e.repeat) return;
+        if (introOpen) {
+          // Empieza la misión con cualquier tecla; Enter/Espacio con el botón
+          if (e.code === 'Enter' || e.code === 'NumpadEnter' || e.code === 'Space' ||
+              e.code === 'Escape' || keyMap[e.code]) {
+            e.preventDefault();
+            hideIntro();
+            const a0 = keyMap[e.code];
+            if (a0) game.setKey(a0, true);      // si pulsó W, ya arranca andando
+            return;
+          }
+        }
         const a = keyMap[e.code];
         if (a) {
           e.preventDefault();
@@ -339,10 +352,10 @@
         if (e.code === 'KeyR') { e.preventDefault(); game.reset(); hideOverlay(); return; }
         if (e.code === 'KeyH') {
           e.preventDefault();
-          const hp = root.document.getElementById('help-panel');
-          if (hp) hp.classList.toggle('open');
+          showIntro();               // H recuerda la misión y los peligros
           return;
         }
+        if (e.code === 'Enter' && !introOpen) return;
       });
       doc.addEventListener('keyup', function (e) {
         const a = keyMap[e.code];
@@ -367,8 +380,16 @@
 
       el.actionBtn.addEventListener('click', function () { game.interact(); });
       el.speedBtn.addEventListener('click', function () { game.toggleSpeed(); });
+      if (el.startBtn) el.startBtn.addEventListener('click', function (ev) {
+        ev.preventDefault();
+        hideIntro();
+      });
+      if (el.intro) el.intro.addEventListener('pointerdown', function (ev) {
+        // clic fuera de la tarjeta también empieza
+        if (ev.target === el.intro) hideIntro();
+      });
       el.pauseBtn.addEventListener('click', togglePause);
-      el.resetBtn.addEventListener('click', function () { game.reset(); hideOverlay(); });
+      el.resetBtn.addEventListener('click', function () { game.reset(); hideOverlay(); hideIntro(); });
       $('#btn-help') && $('#btn-help').addEventListener('click', function () {
         $('#help-panel').classList.toggle('open');
       });
@@ -387,8 +408,36 @@
       }
     }
 
+    /* ---------------- Ventana de bienvenida ---------------- */
+    // El juego empieza en pausa detrás de la ventana: nada se mueve (ni el
+    // cronómetro, ni la salud, ni el perro) hasta que el jugador la cierra.
+    let introOpen = false;
+
+    function showIntro() {
+      if (!el.intro) return;
+      introOpen = true;
+      game.paused = true;
+      game.input.forward = game.input.back = false;
+      game.input.left = game.input.right = false;
+      game.input.brake = false;
+      el.intro.classList.add('show');
+      if (el.startBtn && el.startBtn.focus) el.startBtn.focus({ preventScroll: true });
+    }
+
+    function hideIntro() {
+      if (!el.intro) return;
+      introOpen = false;
+      el.intro.classList.remove('show');
+      // sólo se reanuda si la pausa venía de la ventana de inicio
+      if (!el.overlay.classList.contains('show')) game.paused = false;
+    }
+
+    /** ¿Está abierta la ventana de bienvenida? (para teclas y botones) */
+    function isIntroOpen() { return introOpen; }
+
     function togglePause() {
       if (game.finished) return;
+      if (introOpen) { hideIntro(); return; }   // la pausa cierra/abre la ventana
       game.paused = !game.paused;
       if (game.paused) {
         el.overlay.classList.add('show');
@@ -407,8 +456,15 @@
       }
     }
 
+    // La ventana está visible desde el primer fotograma y el juego en pausa
+    showIntro();
+
     bindInput();
-    return { update, togglePause, hideOverlay };
+    return {
+      update, togglePause, hideOverlay,
+      showIntro, hideIntro, isIntroOpen,
+      get introVisible() { return introOpen; },
+    };
   }
 
   RDR.createUI = createUI;

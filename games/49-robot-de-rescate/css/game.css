@@ -661,6 +661,127 @@ input[type="range"]::-moz-range-thumb {
 .overlay-stats .stat strong { font-family: var(--mono); font-size: 15px; color: #8ef7b6; }
 .overlay-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
 
+
+/* ---------------- Ventana de bienvenida (misión y reglas) ---------------- */
+.overlay.intro { z-index: 32; background: rgba(4, 10, 16, 0.82); }
+.intro-card {
+  width: min(720px, 94%);
+  text-align: left;
+  padding: 22px 24px 16px;
+  max-height: calc(100% - 12px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.intro-badge {
+  display: inline-block;
+  font-size: 10px;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: #7df0b6;
+  background: rgba(53, 224, 161, 0.12);
+  border: 1px solid rgba(53, 224, 161, 0.28);
+  border-radius: 999px;
+  padding: 3px 10px;
+  margin-bottom: 8px;
+}
+.intro-card h2 { font-size: 26px; margin: 0 0 6px; text-align: left; }
+.intro-lead {
+  margin: 0 0 14px !important;
+  color: #cfeaf6 !important;
+  font-size: 13.5px !important;
+  line-height: 1.45 !important;
+}
+.intro-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px;
+  margin-bottom: 12px;
+}
+.intro-item {
+  display: flex;
+  gap: 10px;
+  padding: 9px 11px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(120, 200, 220, 0.14);
+}
+.intro-item h4 {
+  margin: 0 0 3px;
+  font-size: 12px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: #eafff6;
+}
+.intro-item p { margin: 0 !important; font-size: 12px !important; line-height: 1.4 !important; color: #b9d7e6 !important; }
+.intro-item strong { color: #eafff6; }
+.intro-ico {
+  flex: 0 0 auto;
+  width: 30px; height: 30px;
+  display: grid; place-items: center;
+  font-size: 17px;
+  border-radius: 9px;
+  background: rgba(0, 0, 0, 0.28);
+}
+.intro-item.mission { border-color: rgba(53, 224, 161, 0.3); }
+.intro-item.danger { border-color: rgba(255, 120, 120, 0.32); }
+.intro-item.life { border-color: rgba(255, 95, 95, 0.26); }
+.intro-item.stability { border-color: rgba(255, 209, 102, 0.32); }
+.intro-item .intro-bar {
+  height: 6px;
+  margin-top: 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+.intro-item .intro-bar .fill { display: block; height: 100%; border-radius: 999px; }
+.intro-item .intro-bar .fill.ok { background: linear-gradient(90deg, #35e0a1, #7df0b6); }
+.intro-item .intro-bar .fill.warn { background: linear-gradient(90deg, #ffd166, #ffb547); }
+.intro-item .intro-bar .fill.bad { background: linear-gradient(90deg, #ff7b7b, #ff5f5f); }
+.intro-keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 14px;
+  padding: 8px 10px;
+  margin-bottom: 12px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.22);
+  font-size: 11px;
+  color: #a9c6d6;
+}
+.intro-keys kbd { margin-right: 2px; }
+.intro-actions { justify-content: flex-end; }
+.btn.big-start {
+  font-size: 15px;
+  padding: 11px 22px;
+  background: linear-gradient(180deg, #22c98a, #109a67);
+  border-color: rgba(140, 255, 210, 0.55);
+  color: #04241a;
+  box-shadow: 0 10px 30px rgba(53, 224, 161, 0.3);
+}
+.intro-foot {
+  margin: 8px 0 0 !important;
+  text-align: right;
+  font-size: 10.5px !important;
+  color: #7f9cae !important;
+}
+
+/* En ventanas bajas la rejilla pasa a una columna y se compacta */
+@media (max-height: 780px) {
+  .intro-card { padding: 16px 18px 12px; }
+  .intro-card h2 { font-size: 21px; }
+  .intro-lead { margin-bottom: 9px !important; font-size: 12px !important; }
+  .intro-grid { gap: 6px; margin-bottom: 8px; }
+  .intro-item { padding: 6px 9px; gap: 8px; }
+  .intro-item p { font-size: 11px !important; }
+  .intro-ico { width: 26px; height: 26px; font-size: 15px; }
+  .intro-keys { font-size: 10px; padding: 6px 8px; margin-bottom: 8px; }
+  .btn.big-start { font-size: 13.5px; padding: 9px 18px; }
+}
+@media (max-height: 700px), (max-width: 700px) {
+  .intro-grid { grid-template-columns: 1fr; }
+  .intro-keys { display: none; }
+}
+
 /* ---------------- Panel de ayuda ---------------- */
 .help-panel {
   position: absolute;
